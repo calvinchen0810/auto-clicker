@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "author": "auto-clicker",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-nano",
+      "id": "nano",
+      "top": 100,
+      "left": 160,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": 60,
+      "left": 400,
+      "attrs": {
+        "horn": "single"
+      }
+    }
+  ],
+  "connections": [
+    [ "nano:D9",  "servo1:PWM", "orange", [] ],
+    [ "nano:5V",  "servo1:V+",  "red",    [] ],
+    [ "nano:GND", "servo1:GND", "black",  [] ]
+  ],
+  "serialMonitor": {
+    "display": "terminal",
+    "newline": "lf"
+  }
+}
