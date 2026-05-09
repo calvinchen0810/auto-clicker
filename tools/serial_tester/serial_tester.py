@@ -36,10 +36,10 @@ AMBER      = "#f59e0b"
 RED        = "#ef4444"
 BLUE       = "#38bdf8"
 BORDER     = "#27272a"
-FONT_MONO  = ("Consolas", 10)
-FONT_UI    = ("Segoe UI", 10)
-FONT_UI_B  = ("Segoe UI", 10, "bold")
-FONT_TITLE = ("Segoe UI", 11, "bold")
+FONT_MONO  = ("Consolas", 12)
+FONT_UI    = ("Segoe UI", 12)
+FONT_UI_B  = ("Segoe UI", 12, "bold")
+FONT_TITLE = ("Segoe UI", 12, "bold")
 
 
 # ─────────────────────────────────────────
@@ -110,7 +110,7 @@ class SerialTester(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Servo Serial Tester")
-        self.geometry("860x720")
+        self.geometry("1200x900")
         self.configure(bg=BG)
         self.resizable(True, True)
 
