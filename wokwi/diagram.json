@@ -3,30 +3,19 @@
   "author": "auto-clicker",
   "editor": "wokwi",
   "parts": [
-    {
-      "type": "wokwi-arduino-nano",
-      "id": "nano",
-      "top": 100,
-      "left": 160,
-      "attrs": {}
-    },
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 62.4, "left": -29.3, "attrs": {} },
     {
       "type": "wokwi-servo",
       "id": "servo1",
-      "top": 60,
-      "left": 400,
-      "attrs": {
-        "horn": "single"
-      }
+      "top": -40.4,
+      "left": -28.8,
+      "attrs": { "horn": "single" }
     }
   ],
   "connections": [
-    [ "nano:D9",  "servo1:PWM", "orange", [] ],
-    [ "nano:5V",  "servo1:V+",  "red",    [] ],
-    [ "nano:GND", "servo1:GND", "black",  [] ]
+    [ "nano:9", "servo1:PWM", "green", [ "v0" ] ],
+    [ "nano:GND.1", "servo1:GND", "black", [ "v0" ] ],
+    [ "nano:5V", "servo1:V+", "red", [ "v0" ] ]
   ],
-  "serialMonitor": {
-    "display": "terminal",
-    "newline": "lf"
-  }
+  "dependencies": {}
 }
