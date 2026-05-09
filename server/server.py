@@ -61,6 +61,10 @@ class WSManager:
     def __init__(self):
         self._clients: list[WebSocket] = []
         self._lock = asyncio.Lock()
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def set_loop(self, loop: asyncio.AbstractEventLoop):
+        self._loop = loop
 
     async def connect(self, ws: WebSocket):
         await ws.accept()
@@ -87,12 +91,12 @@ class WSManager:
             await self.disconnect(ws)
 
     def broadcast_sync(self, data: dict):
-        """從同步執行緒安全廣播"""
+        """Thread-safe broadcast from a non-async serial reader thread."""
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
+            loop = self._loop
+            if loop is not None and loop.is_running():
                 asyncio.run_coroutine_threadsafe(self.broadcast(data), loop)
-        except RuntimeError:
+        except Exception:
             pass
 
 
@@ -117,9 +121,12 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
         if line.startswith("OK RUNNING ") and "/" in line:
             try:
                 cur, tot = line.split()[-1].split("/")
+                # Firmware reports next step index (1-based), so convert to
+                # completed-step count for UI progress.
+                completed = max(0, int(cur) - 1)
                 ws_mgr.broadcast_sync({
                     "type": "status", "state": "running",
-                    "step": int(cur), "total": int(tot),
+                    "step": completed, "total": int(tot),
                     "port": serial_mgr.port,
                 })
             except Exception:
@@ -140,6 +147,10 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
 
     serial_mgr.on_line(on_serial_line)
     serial_mgr.on_disconnect(on_disconnect)
+
+    @app.on_event("startup")
+    async def _startup():
+        ws_mgr.set_loop(asyncio.get_running_loop())
 
     # ── WebSocket /ws ─────────────────────
     @app.websocket("/ws")
@@ -240,7 +251,32 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
         cmd = body.get("cmd", "").strip()
         if not cmd:
             raise HTTPException(400, "cmd 不能為空")
-        serial_mgr.send(cmd)
+
+        # Keep browser behavior aligned with serial_tester:
+        # a bare STEP command should run as a one-step script.
+        if cmd.upper().startswith("STEP "):
+            parts = cmd.split()
+            if len(parts) not in (5, 6):
+                raise HTTPException(400, "STEP 格式錯誤，應為: STEP delay angle speed duration [home]")
+            try:
+                step = {
+                    "delay_ms": int(parts[1]),
+                    "angle": int(parts[2]),
+                    "speed": int(parts[3]),
+                    "duration_ms": int(parts[4]),
+                    "home": int(parts[5]) if len(parts) == 6 else 1,
+                }
+            except ValueError:
+                raise HTTPException(400, "STEP 參數必須是數字")
+
+            ok = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: serial_mgr.send_script([step], loop=False)
+            )
+            if not ok:
+                raise HTTPException(500, "STEP 指令傳送失敗")
+        else:
+            serial_mgr.send(cmd)
         return {"ok": True}
 
     return app, serial_mgr, ws_mgr

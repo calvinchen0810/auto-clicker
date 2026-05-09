@@ -115,15 +115,26 @@ class SerialManager:
         steps: [{"delay_ms":..., "angle":..., "speed":...,
                  "duration_ms":..., "home":...}, ...]
         """
+        def _to_int(v, default=0):
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return default
+
         cmds = [
             f"LOOP {'1' if loop else '0'}",
             f"BEGIN {len(steps)}",
         ]
         for s in steps:
-            home = int(s.get("home", 1))
+            # Sanitize all fields so browser-side string/float values
+            # cannot skew the STEP command sent to Arduino.
+            delay_ms = max(0, min(65535, _to_int(s.get("delay_ms", 0), 0)))
+            angle    = max(0, min(180,   _to_int(s.get("angle", 90), 90)))
+            speed    = max(1, min(100,   _to_int(s.get("speed", 60), 60)))
+            duration = max(0, min(65535, _to_int(s.get("duration_ms", 300), 300)))
+            home     = 1 if _to_int(s.get("home", 1), 1) else 0
             cmds.append(
-                f"STEP {s['delay_ms']} {s['angle']} "
-                f"{s['speed']} {s['duration_ms']} {home}"
+                f"STEP {delay_ms} {angle} {speed} {duration} {home}"
             )
         cmds.append("END")
 

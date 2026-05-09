@@ -5,7 +5,7 @@
 import os
 from PyInstaller.utils.hooks import collect_data_files
 
-ROOT = os.path.abspath(os.path.dirname(SPECPATH))
+ROOT = os.path.abspath(SPECPATH)
 
 hidden_imports = [
     "uvicorn.logging",

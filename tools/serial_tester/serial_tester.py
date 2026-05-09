@@ -371,14 +371,14 @@ class SerialTester(tk.Tk):
         c.create_arc(cx-r, cy-r, cx+r, cy+r, start=0, extent=180,
                      style="arc", outline=BORDER, width=2)
 
-        # home=1: draw a dashed return path to 0 deg
+        # home=1: draw a dashed path from 0 deg to target angle (counterclockwise)
         if home == 1 and angle > 0:
             c.create_arc(cx-r+6, cy-r+6, cx+r-6, cy+r-6,
-                         start=90, extent=angle - 180,
+                         start=0, extent=angle,
                          style="arc", outline="#1a4a1a", width=1, dash=(3, 3))
 
-        # Target angle needle
-        rad = math.radians(180 - angle)
+        # Target angle needle: 0->180 rotates counterclockwise
+        rad = math.radians(angle)
         ex  = cx + r * math.cos(rad)
         ey  = cy - r * math.sin(rad)
         color = GREEN if home == 1 else AMBER
