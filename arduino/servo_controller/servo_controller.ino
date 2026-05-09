@@ -27,7 +27,7 @@ Step    steps[MAX_STEPS];
 uint8_t stepCount     = 0;
 uint8_t curStep       = 0;
 uint8_t expSteps      = 0;
-int8_t  curAngle      = 0;
+int16_t curAngle      = 0;
 bool    running       = false;
 bool    looping       = false;
 bool    recving       = false;
@@ -51,10 +51,10 @@ static char* parseU8(char *p, uint8_t &out) {
 }
 
 // ── Servo 平滑移動 ─────────────────────────
-void moveServo(int8_t target, uint8_t spd) {
+void moveServo(int16_t target, uint8_t spd) {
   spd = constrain(spd, 1, 100);
   int dpd = map(spd, 1, 100, SPD_SLOW, SPD_FAST);
-  int8_t dir = (target > curAngle) ? 1 : -1;
+  int16_t dir = (target > curAngle) ? 1 : -1;
   while (curAngle != target) {
     curAngle += dir;
     servo.write(curAngle);
