@@ -3,3 +3,5 @@ __pycache__/
 .venv/
 venv/
 *.log
+tools/serial_tester/env/
+tools/serial_tester/build/
