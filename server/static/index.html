@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Servo Controller</title>
+<style>
+/* ── Reset & 變數 ─────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:      #0a0a0c;
+  --panel:   #111115;
+  --card:    #18181e;
+  --input:   #1e1e26;
+  --hover:   #222230;
+  --border:  #2a2a38;
+  --brite:   #3a3a50;
+  --green:   #22c55e;
+  --green2:  #16a34a;
+  --amber:   #f59e0b;
+  --red:     #ef4444;
+  --blue:    #38bdf8;
+  --fg:      #e2e8f0;
+  --fg2:     #94a3b8;
+  --fg3:     #475569;
+  --mono:    'Consolas','Courier New',monospace;
+  --ui:      'Segoe UI',system-ui,sans-serif;
+  --r:       4px;
+}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:13px;overflow:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--panel)}
+::-webkit-scrollbar-thumb{background:var(--brite);border-radius:3px}
+
+/* ── 按鈕 ────────────────────────────── */
+button{font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:.4px;
+  border:1px solid var(--border);border-radius:var(--r);background:var(--card);
+  color:var(--fg);padding:5px 12px;cursor:pointer;transition:all .12s;text-transform:uppercase}
+button:hover:not(:disabled){background:var(--hover);border-color:var(--brite);color:#fff}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.3;cursor:not-allowed}
+.btn-green{background:rgba(34,197,94,.12);border-color:var(--green2);color:var(--green)}
+.btn-green:hover:not(:disabled){background:rgba(34,197,94,.22);box-shadow:0 0 8px rgba(34,197,94,.3)}
+.btn-amber{background:rgba(245,158,11,.1);border-color:#92400e;color:var(--amber)}
+.btn-amber:hover:not(:disabled){background:rgba(245,158,11,.2)}
+.btn-red{background:rgba(239,68,68,.1);border-color:#7f1d1d;color:var(--red)}
+.btn-red:hover:not(:disabled){background:rgba(239,68,68,.2);box-shadow:0 0 8px rgba(239,68,68,.3)}
+.btn-blue{background:rgba(56,189,248,.08);border-color:#075985;color:var(--blue)}
+.btn-blue:hover:not(:disabled){background:rgba(56,189,248,.15)}
+
+/* ── 輸入 ────────────────────────────── */
+input,select{font-family:var(--mono);font-size:12px;background:var(--input);
+  color:var(--fg);border:1px solid var(--border);border-radius:var(--r);
+  padding:4px 7px;outline:none;transition:border-color .12s}
+input:focus,select:focus{border-color:var(--green2)}
+input[type=number]{text-align:right;width:72px}
+input[type=checkbox]{width:14px;height:14px;accent-color:var(--amber);cursor:pointer}
+select{cursor:pointer}
+
+/* ── 面板 ────────────────────────────── */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.ph{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--fg2);background:var(--card);padding:7px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px}
+.ph::before{content:'//';color:var(--fg3)}
+.pb{padding:10px 12px}
+
+/* ── Layout ──────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh}
+#topbar{display:flex;align-items:center;gap:10px;padding:0 14px;height:42px;
+  background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+#main{display:grid;grid-template-columns:1fr 320px;grid-template-rows:auto 1fr;
+  gap:8px;padding:8px;flex:1;overflow:hidden;min-height:0}
+#left-top{grid-column:1;grid-row:1}
+#script-panel{grid-column:1;grid-row:2;overflow:hidden;display:flex;flex-direction:column}
+#right-col{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+
+/* ── Topbar ──────────────────────────── */
+#logo{font-family:var(--mono);font-size:13px;font-weight:bold;color:var(--green);
+  letter-spacing:2px;white-space:nowrap}
+#dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex-shrink:0;
+  box-shadow:0 0 5px var(--red);transition:all .3s}
+#dot.idle{background:var(--green);box-shadow:0 0 6px var(--green)}
+#dot.running{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1s infinite}
+#state-text{font-family:var(--mono);font-size:11px;letter-spacing:1px}
+#port-badge{font-family:var(--mono);font-size:10px;color:var(--fg2);
+  background:var(--input);border:1px solid var(--border);border-radius:2px;padding:1px 7px}
+#port-select{width:200px;font-size:11px}
+.tb-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+.spacer{flex:1}
+#http-label{font-family:var(--mono);font-size:9px;color:var(--fg3);letter-spacing:1px}
+
+/* ── Quick CMD ───────────────────────── */
+#quick-btns{display:flex;gap:8px;padding:10px 12px}
+
+/* ── Single Step ─────────────────────── */
+#step-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;
+  gap:5px 10px;padding:10px 12px 6px}
+#step-grid label{color:var(--fg2);font-size:11px;align-self:center}
+.home-row{display:flex;align-items:center;gap:8px;padding:4px 12px 8px}
+.home-row label{color:var(--fg2);font-size:11px}
+.home-btn{padding:4px 10px;font-size:11px}
+.home-btn.active-green{background:rgba(34,197,94,.18);border-color:var(--green2);color:var(--green)}
+.home-btn.active-amber{background:rgba(245,158,11,.18);border-color:#92400e;color:var(--amber)}
+#canvas-wrap{display:flex;align-items:center;gap:12px;padding:4px 12px 10px}
+#servo-canvas{display:block}
+#home-desc{font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--green)}
+#step-btns{display:flex;gap:8px;padding:0 12px 10px}
+
+/* ── Script Panel ────────────────────── */
+#script-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;
+  border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#script-toolbar label{color:var(--fg2);font-size:11px;display:flex;align-items:center;gap:5px}
+.tb-sep2{width:1px;height:16px;background:var(--border)}
+#table-wrap{flex:1;overflow-y:auto;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+thead th{position:sticky;top:0;z-index:1;background:var(--card);color:var(--fg2);
+  font-size:9px;letter-spacing:1px;padding:6px 8px;text-align:left;
+  border-bottom:1px solid var(--brite);font-weight:normal}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:grab}
+tbody tr:hover{background:var(--hover)}
+tbody tr.drag-over{border-top:2px solid var(--green2)}
+tbody tr.dragging{opacity:.35}
+td{padding:2px 4px;vertical-align:middle}
+.drag-col{color:var(--fg3);text-align:center;width:20px;font-size:14px;cursor:grab}
+td input[type=number]{width:68px;padding:3px 5px}
+.home-sel{width:44px;font-size:12px;padding:3px 4px;text-align:center}
+.del-btn{background:none;border:none;color:var(--fg3);padding:2px 6px;font-size:13px;cursor:pointer}
+.del-btn:hover{color:var(--red)}
+#add-row{padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* ── Right col ───────────────────────── */
+/* Progress */
+#prog-nums{display:flex;align-items:baseline;gap:4px;padding:10px 12px 6px}
+#prog-cur{font-family:var(--mono);font-size:28px;color:var(--green);line-height:1}
+#prog-sep{color:var(--fg3);font-size:16px}
+#prog-tot{font-family:var(--mono);font-size:18px;color:var(--fg2)}
+#loop-badge{font-family:var(--mono);font-size:9px;color:var(--amber);
+  border:1px solid var(--amber);padding:1px 5px;border-radius:2px;margin-left:4px;
+  animation:pulse 1.5s infinite;display:none}
+#prog-pct{font-family:var(--mono);font-size:11px;color:var(--green2);margin-left:auto}
+#prog-track{height:3px;background:var(--input);margin:0 12px 8px;border-radius:2px;overflow:hidden}
+#prog-fill{height:100%;background:linear-gradient(90deg,var(--green2),var(--green));
+  width:0%;transition:width .3s;box-shadow:0 0 6px var(--green)}
+#last-msg{padding:0 12px 10px;font-family:var(--mono);font-size:10px;color:var(--fg2);
+  min-height:18px}
+/* Controls */
+#ctrl-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 12px}
+#btn-stop{grid-column:1/-1;padding:8px}
+#btn-run,#btn-loop{padding:8px}
+/* Serial monitor */
+#serial-panel{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#serial-header{display:flex;align-items:center}
+#serial-header .ph{flex:1}
+#filter-input{width:70px;font-size:10px;padding:2px 5px;margin-right:4px}
+#auto-cb-wrap{display:flex;align-items:center;gap:4px;padding:0 6px;
+  font-size:10px;color:var(--fg2);cursor:pointer}
+#serial-out{flex:1;overflow-y:auto;padding:6px 10px;font-family:var(--mono);
+  font-size:11px;line-height:1.65}
+.s-line{display:flex;gap:8px;animation:fadein .1s}
+.s-ts{color:var(--fg3);flex-shrink:0;font-size:10px;line-height:1.8}
+.c-ok{color:var(--green)}
+.c-run{color:var(--amber)}
+.c-err{color:var(--red)}
+.c-send{color:var(--blue)}
+.c-dim{color:var(--fg2)}
+/* Manual cmd */
+#manual-row{display:flex;align-items:center;gap:6px;padding:6px 10px;
+  border-top:1px solid var(--border);flex-shrink:0}
+#manual-prefix{font-family:var(--mono);color:var(--blue);font-size:12px}
+#manual-input{flex:1;font-size:11px;background:var(--input);border:1px solid var(--border)}
+
+/* ── Animations ──────────────────────── */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <div id="logo">[SERVO CTRL]</div>
+    <div class="tb-sep"></div>
+    <div id="dot"></div>
+    <span id="state-text" style="color:var(--fg2)">DISCONNECTED</span>
+    <span id="port-badge" style="display:none"></span>
+    <div class="tb-sep"></div>
+    <select id="port-select"><option value="">— 自動偵測 —</option></select>
+    <button id="btn-refresh" title="刷新 Port 列表">⟳</button>
+    <button id="btn-conn" class="btn-green">CONNECT</button>
+    <div class="spacer"></div>
+    <span id="http-label">HTTP :7070</span>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+
+    <!-- Left top: Quick + Single Step -->
+    <div id="left-top">
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px">
+
+        <!-- Quick -->
+        <div class="panel" style="align-self:start">
+          <div class="ph">快速指令</div>
+          <div id="quick-btns">
+            <button class="btn-blue" onclick="sendRaw('PING')">PING</button>
+            <button class="btn-amber" onclick="sendRaw('STATUS')">STATUS</button>
+            <button class="btn-red" onclick="apiStop()">STOP</button>
+          </div>
+        </div>
+
+        <!-- Single Step -->
+        <div class="panel">
+          <div class="ph">單步測試</div>
+          <div id="step-grid">
+            <label>延遲 ms</label>
+            <input type="number" id="s-delay" value="0" min="0" max="65535">
+            <label>角度 °</label>
+            <input type="number" id="s-angle" value="90" min="0" max="180"
+                   oninput="updateCanvas()">
+            <label>速度</label>
+            <input type="number" id="s-speed" value="60" min="1" max="100">
+            <label>停留 ms</label>
+            <input type="number" id="s-dur" value="300" min="0" max="65535">
+          </div>
+          <div class="home-row">
+            <label>歸位</label>
+            <button class="home-btn active-green" id="hbtn1" onclick="setHome(1)">1 回 0°</button>
+            <button class="home-btn" id="hbtn0" onclick="setHome(0)">0 停住</button>
+            <div id="canvas-wrap" style="margin-left:8px">
+              <canvas id="servo-canvas" width="100" height="80"></canvas>
+              <div id="home-desc">home=1<br>執行完<br>回到 0°</div>
+            </div>
+          </div>
+          <div id="step-btns">
+            <button class="btn-green" onclick="sendStep()">▶ 送出單步</button>
+            <button onclick="previewStep()">預覽指令</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left bottom: Script editor -->
+    <div id="script-panel" class="panel">
+      <div class="ph" style="flex-shrink:0">腳本編輯器
+        <span id="step-count" style="font-size:9px;color:var(--green2);
+          background:rgba(34,197,94,.08);border:1px solid var(--border);
+          padding:1px 6px;border-radius:2px;margin-left:4px">0 STEPS</span>
+      </div>
+      <div id="script-toolbar">
+        <button onclick="loadExample()">載入範例</button>
+        <button onclick="importJSON()">匯入 JSON</button>
+        <button onclick="exportJSON()">匯出 JSON</button>
+        <div class="tb-sep2"></div>
+        <label><input type="checkbox" id="loop-cb"> 循環</label>
+        <div class="spacer"></div>
+        <button class="btn-green" id="btn-run-script" onclick="runScript(false)">▶ 執行</button>
+        <button class="btn-amber" id="btn-loop-script" onclick="runScript(true)">↺ 循環執行</button>
+        <button class="btn-red" onclick="apiStop()">■ STOP</button>
+      </div>
+      <div id="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22px"></th>
+              <th>DELAY ms</th>
+              <th>ANGLE °</th>
+              <th>SPEED</th>
+              <th>HOLD ms</th>
+              <th>HOME</th>
+              <th style="width:30px"></th>
+            </tr>
+          </thead>
+          <tbody id="steps-tbody"></tbody>
+        </table>
+        <div id="empty-hint" style="padding:24px;text-align:center;
+          color:var(--fg3);font-family:var(--mono);font-size:11px;letter-spacing:1px">
+          // NO STEPS — CLICK ADD TO BEGIN
+        </div>
+      </div>
+      <div id="add-row">
+        <button class="btn-green" onclick="addStep()">＋ ADD STEP</button>
+      </div>
+    </div>
+
+    <!-- Right col -->
+    <div id="right-col">
+
+      <!-- Progress -->
+      <div class="panel">
+        <div class="ph">執行進度</div>
+        <div id="prog-nums">
+          <span id="prog-cur">—</span>
+          <span id="prog-sep">/</span>
+          <span id="prog-tot">—</span>
+          <span id="loop-badge">LOOP</span>
+          <span id="prog-pct"></span>
+        </div>
+        <div id="prog-track"><div id="prog-fill"></div></div>
+        <div id="last-msg"></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="panel">
+        <div class="ph">執行控制</div>
+        <div id="ctrl-btns">
+          <button class="btn-green" id="btn-run" onclick="runScript(false)">▶ RUN ONCE</button>
+          <button class="btn-amber" id="btn-loop" onclick="runScript(true)">↺ LOOP</button>
+          <button class="btn-red" id="btn-stop" onclick="apiStop()">■ STOP</button>
+        </div>
+      </div>
+
+      <!-- Serial Monitor -->
+      <div id="serial-panel" class="panel">
+        <div id="serial-header">
+          <div class="ph" style="flex:1">Serial Monitor</div>
+          <input id="filter-input" placeholder="filter…" oninput="renderLog()">
+          <label id="auto-cb-wrap">
+            <input type="checkbox" id="auto-scroll" checked> AUTO
+          </label>
+        </div>
+        <div id="serial-out"></div>
+        <div id="manual-row">
+          <span id="manual-prefix">>></span>
+          <input id="manual-input" placeholder="手動輸入指令…"
+                 onkeydown="if(event.key==='Enter')manualSend()">
+          <button onclick="manualSend()">送出</button>
+        </div>
+      </div>
+
+    </div><!-- right-col -->
+  </div><!-- main -->
+</div><!-- app -->
+
+<!-- Hidden file input for JSON import -->
+<input type="file" id="file-input" accept=".json" style="display:none"
+       onchange="handleImport(event)">
+
+<script>
+// ════════════════════════════════════════
+//  State
+// ════════════════════════════════════════
+let steps     = [];
+let homeVal   = 1;
+let logLines  = [];
+let wsConn    = null;
+let stepIdCnt = 0;
+let dragSrc   = null;
+
+const connected = () => document.getElementById('dot').classList.contains('idle') ||
+                         document.getElementById('dot').classList.contains('running');
+
+// ════════════════════════════════════════
+//  WebSocket
+// ════════════════════════════════════════
+function wsConnect() {
+  const url = `ws://${location.host}/ws`;
+  wsConn = new WebSocket(url);
+
+  wsConn.onopen = () => {
+    addLog('WS 已連線', 'c-dim');
+  };
+
+  wsConn.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    handleWS(msg);
+  };
+
+  wsConn.onclose = () => {
+    addLog('WS 中斷，3秒後重連…', 'c-err');
+    setTimeout(wsConnect, 3000);
+  };
+
+  wsConn.onerror = () => wsConn.close();
+}
+
+function handleWS(msg) {
+  if (msg.type === 'serial') {
+    addLog('← ' + msg.line, classifyLine(msg.line));
+  }
+  else if (msg.type === 'status') {
+    setUIState(msg.state, msg.port, msg.step, msg.total);
+  }
+  else if (msg.type === 'done') {
+    setUIState('idle', null, null, null);
+    setProgress(null, null);
+    setLastMsg('✔ 執行完畢');
+    document.getElementById('loop-badge').style.display = 'none';
+  }
+  else if (msg.type === 'error') {
+    addLog('ERR ' + msg.message, 'c-err');
+    setLastMsg('✘ ' + msg.message);
+  }
+}
+
+function classifyLine(line) {
+  if (['OK READY','OK DONE','OK PONG','OK IDLE','OK STOPPED'].includes(line)) return 'c-ok';
+  if (line.startsWith('OK RUNNING') || line.startsWith('OK LOOP'))            return 'c-run';
+  if (line.startsWith('ERR'))                                                  return 'c-err';
+  return 'c-dim';
+}
+
+// ════════════════════════════════════════
+//  UI State
+// ════════════════════════════════════════
+function setUIState(state, port, step, total) {
+  const dot   = document.getElementById('dot');
+  const stTxt = document.getElementById('state-text');
+  const badge = document.getElementById('port-badge');
+
+  dot.className = '';
+  if (state === 'idle') {
+    dot.classList.add('idle');
+    stTxt.style.color = 'var(--green)';
+    stTxt.textContent = 'IDLE';
+    badge.style.display = port ? '' : 'none';
+    if (port) badge.textContent = port;
+    setProgress(null, null);
+  } else if (state === 'running') {
+    dot.classList.add('running');
+    stTxt.style.color = 'var(--amber)';
+    stTxt.textContent = 'RUNNING';
+    if (step !== null && total !== null) setProgress(step, total);
+  } else {
+    stTxt.style.color = 'var(--fg2)';
+    stTxt.textContent = 'DISCONNECTED';
+    badge.style.display = 'none';
+  }
+
+  const isConn    = state !== 'disconnected';
+  const isRunning = state === 'running';
+  document.getElementById('btn-conn').textContent      = isConn ? 'DISCONNECT' : 'CONNECT';
+  document.getElementById('btn-conn').className        = isConn ? 'btn-red' : 'btn-green';
+  document.getElementById('btn-run').disabled          = !isConn || isRunning;
+  document.getElementById('btn-loop').disabled         = !isConn || isRunning;
+  document.getElementById('btn-run-script').disabled   = !isConn || isRunning;
+  document.getElementById('btn-loop-script').disabled  = !isConn || isRunning;
+  document.getElementById('btn-stop').disabled         = !isConn || !isRunning;
+}
+
+function setProgress(cur, tot) {
+  const pCur  = document.getElementById('prog-cur');
+  const pTot  = document.getElementById('prog-tot');
+  const pFill = document.getElementById('prog-fill');
+  const pPct  = document.getElementById('prog-pct');
+  if (cur === null) {
+    pCur.textContent  = '—';
+    pTot.textContent  = '—';
+    pFill.style.width = '0%';
+    pPct.textContent  = '';
+  } else {
+    pCur.textContent  = cur;
+    pTot.textContent  = tot;
+    const pct = tot > 0 ? Math.round(cur / tot * 100) : 0;
+    pFill.style.width = pct + '%';
+    pPct.textContent  = pct + '%';
+  }
+}
+
+function setLastMsg(msg) {
+  document.getElementById('last-msg').textContent = msg;
+}
+
+// ════════════════════════════════════════
+//  Port
+// ════════════════════════════════════════
+async function refreshPorts() {
+  const res   = await fetch('/api/ports');
+  const data  = await res.json();
+  const sel   = document.getElementById('port-select');
+  const cur   = sel.value;
+  sel.innerHTML = '<option value="">— 自動偵測 —</option>';
+  (data.ports || []).forEach(p => {
+    const opt  = document.createElement('option');
+    opt.value  = p.port;
+    opt.text   = (p.likely ? '⭐ ' : '   ') + p.port + '  ' + p.desc;
+    sel.appendChild(opt);
+  });
+  if (cur) sel.value = cur;
+}
+
+async function toggleConnect() {
+  if (connected()) {
+    await fetch('/api/disconnect', {method:'POST'});
+    setUIState('disconnected');
+    addLog('已中斷連線', 'c-dim');
+  } else {
+    const port = document.getElementById('port-select').value || undefined;
+    const res  = await fetch('/api/connect', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({port: port || null})
+    });
+    const data = await res.json();
+    if (res.ok) {
+      addLog(`已連線到 ${data.port}`, 'c-ok');
+    } else {
+      addLog('✘ 連線失敗：' + (data.detail || ''), 'c-err');
+    }
+  }
+}
+
+// ════════════════════════════════════════
+//  Single Step
+// ════════════════════════════════════════
+function setHome(val) {
+  homeVal = val;
+  const b1  = document.getElementById('hbtn1');
+  const b0  = document.getElementById('hbtn0');
+  const desc = document.getElementById('home-desc');
+  b1.className = 'home-btn' + (val === 1 ? ' active-green' : '');
+  b0.className = 'home-btn' + (val === 0 ? ' active-amber' : '');
+  desc.style.color = val === 1 ? 'var(--green)' : 'var(--amber)';
+  desc.innerHTML   = val === 1 ? 'home=1<br>執行完<br>回到 0°' : 'home=0<br>停在<br>目標角度';
+  drawCanvas();
+}
+
+function getStepParams() {
+  return {
+    delay_ms:    parseInt(document.getElementById('s-delay').value) || 0,
+    angle:       parseInt(document.getElementById('s-angle').value) || 0,
+    speed:       parseInt(document.getElementById('s-speed').value) || 60,
+    duration_ms: parseInt(document.getElementById('s-dur').value)   || 0,
+    home:        homeVal,
+  };
+}
+
+async function sendStep() {
+  const p = getStepParams();
+  drawCanvas();
+  const res = await fetch('/api/command', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(p),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    addLog('✘ ' + (d.detail || '送出失敗'), 'c-err');
+  } else {
+    addLog(`→ STEP ${p.delay_ms} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home}`, 'c-send');
+  }
+}
+
+function previewStep() {
+  const p = getStepParams();
+  drawCanvas();
+  addLog(`預覽: LOOP 0 | BEGIN 1 | STEP ${p.delay_ms} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home} | END`, 'c-dim');
+}
+
+async function sendRaw(cmd) {
+  const res = await fetch('/api/send', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({cmd}),
+  });
+  if (res.ok) addLog('→ ' + cmd, 'c-send');
+  else addLog('✘ 未連線', 'c-err');
+}
+
+async function apiStop() {
+  const res = await fetch('/api/stop', {method:'POST'});
+  if (res.ok) addLog('→ STOP', 'c-send');
+}
+
+// ════════════════════════════════════════
+//  Canvas
+// ════════════════════════════════════════
+function drawCanvas() {
+  const angle = parseInt(document.getElementById('s-angle').value) || 0;
+  const c     = document.getElementById('servo-canvas');
+  const ctx   = c.getContext('2d');
+  const cx = 50, cy = 66, r = 38;
+  ctx.clearRect(0, 0, c.width, c.height);
+
+  // 背景弧
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, Math.PI, 0, false);
+  ctx.strokeStyle = '#2a2a38'; ctx.lineWidth = 2; ctx.stroke();
+
+  // home=1 虛線歸位路徑
+  if (homeVal === 1 && angle > 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 7, Math.PI, Math.PI - angle * Math.PI / 180, true);
+    ctx.strokeStyle = '#1a4a1a'; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // 指針
+  const rad = Math.PI - angle * Math.PI / 180;
+  const ex  = cx + r * Math.cos(rad);
+  const ey  = cy - r * Math.sin(rad);
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
+  ctx.strokeStyle = homeVal === 1 ? '#22c55e' : '#f59e0b';
+  ctx.lineWidth = 2.5; ctx.stroke();
+
+  // 中心點
+  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#f59e0b'; ctx.fill();
+
+  // home=1 歸位點
+  if (homeVal === 1) {
+    ctx.beginPath(); ctx.arc(cx + r, cy, 3.5, 0, Math.PI * 2);
+    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5;
+    ctx.fillStyle = '#1a4a1a'; ctx.fill(); ctx.stroke();
+  }
+
+  // 角度文字
+  ctx.fillStyle = '#e2e8f0'; ctx.font = '11px Consolas';
+  ctx.textAlign = 'center'; ctx.fillText(angle + '°', cx, cy + 18);
+}
+function updateCanvas() { drawCanvas(); }
+
+// ════════════════════════════════════════
+//  Script Editor
+// ════════════════════════════════════════
+function addStep(s) {
+  const row = s || {delay_ms:0, angle:90, speed:60, duration_ms:300, home:1};
+  row._id = ++stepIdCnt;
+  steps.push(row);
+  renderSteps();
+}
+
+function delStep(id) {
+  steps = steps.filter(s => s._id !== id);
+  renderSteps();
+}
+
+function renderSteps() {
+  const tbody = document.getElementById('steps-tbody');
+  const hint  = document.getElementById('empty-hint');
+  tbody.innerHTML = '';
+  hint.style.display = steps.length ? 'none' : '';
+  document.getElementById('step-count').textContent = steps.length + ' STEPS';
+
+  steps.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    tr.dataset.id  = s._id;
+    tr.draggable   = true;
+    tr.innerHTML = `
+      <td class="drag-col">⠿</td>
+      <td><input type="number" value="${s.delay_ms}"    min="0"   max="65535" onchange="updateStep(${s._id},'delay_ms',this.value)"></td>
+      <td><input type="number" value="${s.angle}"       min="0"   max="180"   onchange="updateStep(${s._id},'angle',this.value)"></td>
+      <td><input type="number" value="${s.speed}"       min="1"   max="100"   onchange="updateStep(${s._id},'speed',this.value)"></td>
+      <td><input type="number" value="${s.duration_ms}" min="0"   max="65535" onchange="updateStep(${s._id},'duration_ms',this.value)"></td>
+      <td><select class="home-sel" onchange="updateStep(${s._id},'home',this.value)">
+        <option value="1" ${s.home===1?'selected':''}>1 ↩</option>
+        <option value="0" ${s.home===0?'selected':''}>0 ✋</option>
+      </select></td>
+      <td><button class="del-btn" onclick="delStep(${s._id})">✕</button></td>`;
+
+    // Drag & Drop
+    tr.addEventListener('dragstart', e => {
+      dragSrc = i; tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    tr.addEventListener('dragend', () => {
+      tr.classList.remove('dragging');
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+    });
+    tr.addEventListener('dragover', e => {
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+      tr.classList.add('drag-over');
+    });
+    tr.addEventListener('drop', e => {
+      e.preventDefault();
+      if (dragSrc !== null && dragSrc !== i) {
+        const moved = steps.splice(dragSrc, 1)[0];
+        steps.splice(i, 0, moved);
+        dragSrc = null;
+        renderSteps();
+      }
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+function updateStep(id, key, val) {
+  const s = steps.find(x => x._id === id);
+  if (s) s[key] = (key === 'home') ? parseInt(val) : (isNaN(parseFloat(val)) ? 0 : parseInt(val));
+}
+
+function loadExample() {
+  steps = [];
+  const ex = [
+    {delay_ms:2000,angle:90,speed:60,duration_ms:300,home:1},
+    {delay_ms:1000,angle:90,speed:60,duration_ms:300,home:1},
+    {delay_ms:1000,angle:90,speed:60,duration_ms:300,home:1},
+  ];
+  ex.forEach(s => { s._id = ++stepIdCnt; steps.push(s); });
+  renderSteps();
+}
+
+function exportJSON() {
+  const data = {
+    loop:  document.getElementById('loop-cb').checked,
+    steps: steps.map(({_id, ...s}) => s),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'servo_script.json';
+  a.click();
+}
+
+function importJSON() {
+  document.getElementById('file-input').click();
+}
+
+function handleImport(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (typeof data.loop === 'boolean')
+        document.getElementById('loop-cb').checked = data.loop;
+      if (Array.isArray(data.steps)) {
+        steps = data.steps.map(s => ({...s, _id: ++stepIdCnt}));
+        renderSteps();
+      }
+    } catch { addLog('✘ JSON 格式錯誤', 'c-err'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+async function runScript(forceLoop) {
+  if (!steps.length) { addLog('⚠ 腳本為空', 'c-err'); return; }
+  const loop = forceLoop || document.getElementById('loop-cb').checked;
+  document.getElementById('loop-badge').style.display = loop ? '' : 'none';
+  const body = { loop, steps: steps.map(({_id, ...s}) => s) };
+  const res  = await fetch('/api/run', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) addLog('✘ ' + (data.detail || '執行失敗'), 'c-err');
+  else         addLog(`→ RUN ${steps.length} steps loop=${loop}`, 'c-send');
+}
+
+// ════════════════════════════════════════
+//  Serial Log
+// ════════════════════════════════════════
+function addLog(text, cls='c-dim') {
+  const ts = new Date().toLocaleTimeString('zh-TW',{hour12:false});
+  logLines.push({ts, text, cls});
+  if (logLines.length > 500) logLines.shift();
+  renderLog();
+}
+
+function renderLog() {
+  const filter = document.getElementById('filter-input').value.toLowerCase();
+  const out    = document.getElementById('serial-out');
+  const lines  = filter ? logLines.filter(l => l.text.toLowerCase().includes(filter)) : logLines;
+  out.innerHTML = lines.map(l =>
+    `<div class="s-line"><span class="s-ts">${l.ts}</span><span class="${l.cls}">${escHtml(l.text)}</span></div>`
+  ).join('');
+  if (document.getElementById('auto-scroll').checked)
+    out.scrollTop = out.scrollHeight;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function manualSend() {
+  const inp = document.getElementById('manual-input');
+  const cmd = inp.value.trim(); if (!cmd) return;
+  sendRaw(cmd);
+  inp.value = '';
+}
+
+// ════════════════════════════════════════
+//  Init
+// ════════════════════════════════════════
+document.getElementById('btn-conn').onclick    = toggleConnect;
+document.getElementById('btn-refresh').onclick = refreshPorts;
+document.getElementById('s-angle').addEventListener('input', drawCanvas);
+
+// Initial state: all run buttons disabled
+setUIState('disconnected');
+
+refreshPorts();
+wsConnect();
+drawCanvas();
+loadExample();
+
+// Refresh ports every 5s
+setInterval(refreshPorts, 5000);
+</script>
+</body>
+</html>

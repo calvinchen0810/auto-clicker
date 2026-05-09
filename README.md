@@ -14,14 +14,25 @@ auto-clicker/
 │       └── servo_controller.ino    ← Arduino IDE 2 主程式
 │
 ├── wokwi/
-│   ├── diagram.json                ← Wokwi 電路圖（Arduino Nano + Servo）
-│   └── README.md                   ← 模擬器使用說明
+│   ├── diagram.json                ← Wokwi 電路圖
+│   └── README.md                   ← 模擬器操作說明
 │
-└── tools/
-    └── serial_tester/
-        ├── serial_tester.py        ← Python tkinter Serial 測試工具
-        ├── requirements.txt
-        └── README.md
+├── tools/
+│   └── serial_tester/
+│       ├── serial_tester.py        ← tkinter 桌面測試工具
+│       ├── requirements.txt
+│       └── README.md
+│
+└── server/                         ← HTTP Server（Web UI + REST API）
+    ├── main.py                     ← EXE 進入點
+    ├── server.py                   ← FastAPI + WebSocket
+    ├── serial_manager.py           ← PySerial 通訊層
+    ├── static/index.html           ← Web UI（純 HTML + Vanilla JS）
+    ├── build.py                    ← PyInstaller 打包腳本
+    ├── server.spec                 ← PyInstaller 設定
+    ├── rthook_asyncio.py           ← EXE asyncio 修正
+    ├── requirements.txt
+    └── README.md
 ```
 
 ---
@@ -39,23 +50,38 @@ Arduino Nano GND → Servo 接地（棕/黑）
 
 ---
 
-## 開始使用
+## 使用方式
 
 ### 1. 燒錄 Arduino
 
-用 Arduino IDE 2 開啟 `arduino/servo_controller/servo_controller.ino` 並上傳。
-Serial 鮑率：`115200`，上傳成功後 Serial Monitor 顯示 `OK READY`。
+Arduino IDE 2 開啟 `arduino/servo_controller/servo_controller.ino` 上傳。
+鮑率 `115200`，Serial Monitor 顯示 `OK READY` 表示成功。
 
-### 2. 模擬測試（不需要硬體）
+### 2. Wokwi 模擬（不需要硬體）
 
-參考 `wokwi/README.md`，在瀏覽器模擬 Arduino + Servo 行為。
+參考 `wokwi/README.md`。
 
-### 3. 實機測試工具
+### 3. tkinter 桌面測試工具
 
 ```bash
 cd tools/serial_tester
 pip install pyserial
 python serial_tester.py
+```
+
+### 4. HTTP Server（Web UI + API）
+
+```bash
+cd server
+pip install -r requirements.txt
+python main.py
+# 開啟瀏覽器：http://localhost:7070
+```
+
+打包成 EXE（Windows）：
+```bash
+python build.py --clean
+# 輸出：dist/ServoServer.exe
 ```
 
 ---
@@ -64,53 +90,39 @@ python serial_tester.py
 
 鮑率：`115200`
 
-### 指令格式
-
 ```
-PING                                   → OK PONG
-STATUS                                 → OK IDLE / OK RUNNING n/total
-LOOP 0/1                               → OK LOOP 0/1
-BEGIN n                                → OK RECEIVING
-STEP delay_ms angle speed duration_ms [home]  → OK STEP n
-END                                    → OK RUNNING
-STOP                                   → OK STOPPED
+STEP 格式：delay_ms angle speed duration_ms [home]
+  home=1（預設）→ 執行完回到 0°
+  home=0        → 停在目標角度
 ```
 
-### STEP 參數
+| 指令 | 說明 |
+|------|------|
+| `PING` | 確認連線 → `OK PONG` |
+| `STATUS` | 查詢狀態 |
+| `LOOP 0/1` | 設定循環 |
+| `BEGIN n` | 開始傳腳本 |
+| `STEP ...` | 新增步驟 |
+| `END` | 執行腳本 |
+| `STOP` | 立即停止並歸位 |
 
-| 參數 | 範圍 | 說明 |
-|------|------|------|
-| `delay_ms` | 0–65535 | 執行前等待毫秒 |
-| `angle` | 0–180 | Servo 目標角度 |
-| `speed` | 1–100 | 移動速度（100=最快）|
-| `duration_ms` | 0–65535 | 到達後停留毫秒 |
-| `home` | 0 或 1（**可省略，預設 1**）| 執行完是否歸位到 0° |
+---
 
-### home 參數
-
-| 值 | 行為 |
-|----|------|
-| `1`（預設）| 執行完自動回到 0°（向下相容）|
-| `0` | 停在目標角度不歸位 |
-
-> `STOP` 無論 home 設定為何，都會強制歸位到 0°
-
-### 使用範例
+## HTTP API（Server 啟動後）
 
 ```
-# 按 3 次，每次自動歸位
-LOOP 0
-BEGIN 3
-STEP 2000 90 60 300 1
-STEP 1000 90 60 300 1
-STEP 1000 90 60 300 1
-END
+Web UI  : http://localhost:7070
+API文件 : http://localhost:7070/docs
+WS      : ws://localhost:7070/ws
+```
 
-# 連續移動不歸位，最後才回 0°
-LOOP 0
-BEGIN 3
-STEP 0 45 80 200 0
-STEP 0 90 80 200 0
-STEP 0 135 80 300 1
-END
+外部程式呼叫範例：
+```python
+import requests
+requests.post("http://localhost:7070/api/run", json={
+    "loop": False,
+    "steps": [
+        {"delay_ms": 2000, "angle": 90, "speed": 60, "duration_ms": 300, "home": 1},
+    ]
+})
 ```
