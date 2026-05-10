@@ -58,221 +58,162 @@ python build.py --clean
 
 ---
 
-## Web UI 使用說明
+## Web UI 與 API 使用說明
 
-### 介面佈局
+### 使用步驟
 
-```
-┌─[SERVO CTRL]── ● IDLE  COM3  [port▼][⟳][CONNECT] ── HTTP:7070 ──┐
-│                                                                    │
-│ ┌── Servo管理 ──┐  ┌── 單步測試 ──────┐  ┌── 執行進度 ──────────┐ │
-│ │ S1 ● D9  DETACH│  │ 延遲  [  0] ms   │  │  2 / 6   LOOP ●     │ │
-│ │ S2 ○ [10]ATTACH│  │ ServoID[ 1]      │  │  ████████░░  33%    │ │
-│ │ S3 ○ [11]ATTACH│  │ 角度  [ 90] °  ◜ │  ├──── 執行控制 ──────┤ │
-│ │ S4 ○ [ 6]ATTACH│  │ 速度  [ 60]      │  │ [▶ RUN][↺ LOOP]    │ │
-│ │ S5 ○ [ 5]ATTACH│  │ 停留  [300] ms   │  │ [■■■■■ STOP ■■■■■] │ │
-│ │ S6 ○ [ 3]ATTACH│  │ 歸位[1 回0°][0停] │  ├──── Serial Monitor ┤ │
-│ │[全部ATTACH][全部]│  │   ◜  home=1     │  │ ← OK READY         │ │
-│ ├── 快速指令 ───┤  │ [▶ 送出][預覽]  │  │ → ATTACH 1 9       │ │
-│ │[PING][STATUS][STOP]│  └──────────────────┘  │ ← OK ATTACH 1 9    │ │
-│ └────────────────┘                             │ → BEGIN 3          │ │
-│                    ┌── 腳本編輯器 ─────────┐  │ ← OK RUNNING 1/3   │ │
-│                    │[載入][匯入][匯出]☐循環 │  │                    │ │
-│                    │ DELAY  SID ANGLE SPD HOLD│  │ >> [手動輸入] [送出]│ │
-│                    │  1000   1   90   60  300 │  └────────────────────┘ │
-│                    │  1000   2   90   60  300 │                          │
-│                    │[＋ ADD STEP]             │                          │
-│                    └───────────────────────────┘                         │
-└────────────────────────────────────────────────────────────────────────┘
-```
+1. 啟動 server：`python main.py`（或執行 EXE）
+2. 開啟瀏覽器：`http://127.0.0.1:7070`
+3. 選擇 COM port 並按 `CONNECT`
+4. 在 Servo 管理區設定腳位並執行 `ATTACH`
+5. 於單步測試或腳本編輯器執行動作
 
-### 連線步驟
+### Server 架構（詳細）
 
-1. 插入 Arduino Nano（USB）
-2. 瀏覽器開啟 http://localhost:7070
-3. 選擇 COM port（⭐ 表示可能是 Arduino）或留空自動偵測
-4. 點擊 **CONNECT**
-5. 狀態燈變綠色、顯示 `IDLE` 表示連線成功
+`server/` 採用 FastAPI + WebSocket + Serial 管理器三層設計：
 
-### Servo 管理區
+- `main.py`：啟動入口，建立並啟動 Uvicorn（預設 `127.0.0.1:7070`）
+- `server.py`：
+  - 定義 REST API（例如 `/api/connect`、`/api/attach`、`/api/run`）
+  - 管理 WebSocket 連線，推播狀態給前端
+  - 驗證請求資料並協調執行流程
+- `serial_manager.py`：
+  - 封裝 PySerial 連線、送收、背景讀取執行緒
+  - 維護 attach 狀態（`sid -> pin`）
+  - 送出 `LOOP/BEGIN/STEP/END` 腳本指令
+  - 使用 `attach_servo_and_wait` 等待 `OK ATTACH`，避免 attach 後立即 step 的競速問題
+- `static/index.html`：純前端單頁介面，透過 HTTP 與 WebSocket 與後端互動
 
-每顆 Servo 一列：
+資料流：
 
-| 元素 | 說明 |
-|------|------|
-| `S1`–`S6` | Servo 編號 |
-| `●` 狀態燈 | 綠色=已 ATTACH，灰色=未 ATTACH |
-| 腳位輸入框 | 設定接哪個 Arduino Pin（未 ATTACH 時可編輯）|
-| [ATTACH] | 送出 `ATTACH sid pin`，Servo 歸位到 0° |
-| [DETACH] | 送出 `DETACH sid`，釋放 Servo |
-| [全部 ATTACH] | 批次 ATTACH 所有 6 顆（使用各列設定的腳位）|
-| [全部 DETACH] | 批次 DETACH 所有已連接的 Servo |
+1. Web UI 或外部程式呼叫 REST API
+2. `server.py` 驗證後呼叫 `serial_manager.py`
+3. `serial_manager.py` 送 Serial 指令到 Arduino
+4. Arduino 回傳行資料，server 同步狀態並 WebSocket 回推前端
 
-**預設腳位：** S1=D9, S2=D10, S3=D11, S4=D6, S5=D5, S6=D3
+### Web UI 架構（詳細）
 
-### 單步測試
+`static/index.html` 主要區塊：
 
-1. 設定延遲、Servo ID（橘色）、角度、速度、停留時間
-2. 選擇歸位模式：`1 回 0°` 或 `0 停住`
-3. 角度指示器即時顯示目標角度
-4. 點擊 **[▶ 送出單步]** 執行
-   - 若該 Servo 未 ATTACH，會彈出確認對話框詢問是否先 ATTACH
+- 連線控制區：掃描 COM、連線/斷線、狀態顯示
+- Servo 管理區：S1-S6 pin 設定、Attach/Detach、狀態同步
+- 單步測試區：即時送單一步驟
+- 腳本編輯區：
+  - 建立多筆步驟
+  - Loop 開關
+  - 匯入/匯出 JSON
+  - 可輸出/匯入 `attach_cmds` 與 `servos`
+  - 一鍵呼叫 `/api/run`
 
-### 腳本編輯器
-
-| 功能 | 說明 |
-|------|------|
-| 表格編輯 | 直接點擊儲存格修改數值 |
-| 拖曳排序 | 拖曳最左側 `⠿` 符號重排步驟 |
-| SID 欄位 | 橘色，指定每步使用哪顆 Servo |
-| 載入範例 | 預載 3 步驟示範腳本 |
-| 匯入 JSON | 從檔案載入腳本 |
-| 匯出 JSON | 儲存腳本為 .json 檔 |
-| 循環勾選 | 腳本結束後重新執行 |
-
----
-
-## REST API 文件
-
-### 端點總覽
+### API 端點總覽
 
 | 方法 | 路徑 | 說明 |
 |------|------|------|
 | GET | `/api/ports` | 列出可用 COM port |
-| GET | `/api/status` | 查詢狀態 + 已 ATTACH 清單 |
+| GET | `/api/status` | 查詢狀態與 attach 清單 |
 | POST | `/api/connect` | 連線 |
 | POST | `/api/disconnect` | 斷線 |
 | POST | `/api/attach` | 單顆 ATTACH |
 | POST | `/api/detach` | 單顆 DETACH |
 | POST | `/api/attach_all` | 批次 ATTACH |
 | POST | `/api/detach_all` | 批次 DETACH |
-| POST | `/api/run` | 執行腳本 |
+| POST | `/api/run` | 執行腳本（可含 `attach_cmds`、`servos`） |
 | POST | `/api/stop` | 停止 |
 | POST | `/api/command` | 送出單一步驟 |
 | POST | `/api/send` | 傳送原始 Serial 指令 |
-| WS | `/ws` | WebSocket 即時推送 |
+| WS | `/ws` | 即時事件推送 |
 
-### API 呼叫範例
+### curl 使用方式（Windows）
 
-**Python（外部 EXE 整合）：**
-```python
-import requests
+連線：
 
-BASE = "http://localhost:7070"
-
-# 1. 連線
-requests.post(f"{BASE}/api/connect", json={"port": "COM3"})
-
-# 2. ATTACH Servo
-requests.post(f"{BASE}/api/attach", json={"sid": 1, "pin": 9})
-requests.post(f"{BASE}/api/attach", json={"sid": 2, "pin": 10})
-
-# 3. 執行腳本
-requests.post(f"{BASE}/api/run", json={
-    "loop": False,
-    "steps": [
-        {"delay_ms": 1000, "servo_id": 1, "angle": 90,
-         "speed": 60, "duration_ms": 300, "home": 1},
-        {"delay_ms": 500,  "servo_id": 2, "angle": 90,
-         "speed": 60, "duration_ms": 300, "home": 1},
-    ]
-})
-
-# 4. 查詢狀態
-status = requests.get(f"{BASE}/api/status").json()
-# {"state": "running", "port": "COM3", "attached": {"1": 9, "2": 10}}
-```
-
-**curl：**
 ```bash
-# ATTACH
-curl -X POST http://localhost:7070/api/attach \
-  -H "Content-Type: application/json" \
-  -d '{"sid": 1, "pin": 9}'
-
-# 批次 ATTACH
-curl -X POST http://localhost:7070/api/attach_all \
-  -H "Content-Type: application/json" \
-  -d '{"servos": {"1": 9, "2": 10, "3": 11}}'
-
-# 執行腳本
-curl -X POST http://localhost:7070/api/run \
-  -H "Content-Type: application/json" \
-  -d @script.json
+curl.exe -X POST "http://127.0.0.1:7070/api/connect" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"port\":\"COM3\"}"
 ```
 
----
+執行腳本（指定 JSON 檔，與根 README 同規格）：
 
-## JSON 腳本格式
+```bash
+curl.exe -X POST http://127.0.0.1:7070/api/run -H "Content-Type: application/json" --data-binary "@servo_script_with_attach.json"
+```
+
+停止：
+
+```bash
+curl.exe -X POST "http://127.0.0.1:7070/api/stop"
+```
+
+斷線：
+
+```bash
+curl.exe -X POST "http://127.0.0.1:7070/api/disconnect"
+```
+
+### `servo_script_with_attach.json` 範例
 
 ```json
 {
   "loop": false,
+  "attach_cmds": [
+    "ATTACH 1 9",
+    "ATTACH 2 10"
+  ],
+  "servos": {
+    "1": 9,
+    "2": 10
+  },
   "steps": [
     {
-      "delay_ms":    1000,
-      "servo_id":    1,
-      "angle":       90,
-      "speed":       60,
+      "delay_ms": 200,
+      "servo_id": 1,
+      "angle": 90,
+      "speed": 60,
       "duration_ms": 300,
-      "home":        1
-    },
-    {
-      "delay_ms":    500,
-      "servo_id":    2,
-      "angle":       90,
-      "speed":       60,
-      "duration_ms": 300,
-      "home":        0
+      "home": 1
     }
   ]
 }
 ```
 
-| 欄位 | 範圍 | 說明 |
-|------|------|------|
-| `delay_ms` | 0–65535 | 執行前等待 ms |
-| `servo_id` | 1–6 | 要動哪顆 Servo（需已 ATTACH）|
-| `angle` | 0–180 | 目標角度 |
-| `speed` | 1–100 | 移動速度 |
-| `duration_ms` | 0–65535 | 停留 ms |
-| `home` | 0 或 1（預設 1）| 執行完是否歸位 |
+### Python 呼叫範例
 
----
+```python
+import requests
 
-## WebSocket 事件
+BASE = "http://127.0.0.1:7070"
 
-連線：`ws://localhost:7070/ws`
+requests.post(f"{BASE}/api/connect", json={"port": "COM3"})
 
-### Server → Browser
+requests.post(
+    f"{BASE}/api/run",
+    json={
+        "loop": False,
+        "attach_cmds": ["ATTACH 1 9"],
+        "servos": {"1": 9},
+        "steps": [
+            {
+                "delay_ms": 1000,
+                "servo_id": 1,
+                "angle": 90,
+                "speed": 60,
+                "duration_ms": 300,
+                "home": 1,
+            }
+        ],
+    },
+)
+```
+
+### WebSocket 事件
+
+連線位址：`ws://127.0.0.1:7070/ws`
 
 | `type` | 說明 | 主要欄位 |
 |--------|------|---------|
 | `status` | 狀態變更 | `state`, `port`, `attached`, `step`, `total` |
-| `attached` | ATTACH/DETACH 更新 | `attached` {sid: pin} |
+| `attached` | ATTACH/DETACH 更新 | `attached` |
 | `serial` | Arduino 輸出一行 | `line` |
-| `done` | 腳本執行完畢 | — |
+| `done` | 腳本執行完成 | — |
 | `error` | 發生錯誤 | `message` |
-
-### `attached` 欄位格式
-
-```json
-{"1": 9, "2": 10, "3": 11}
-```
-key=servo_id，value=pin。
-
-### JavaScript 範例
-
-```js
-const ws = new WebSocket('ws://localhost:7070/ws');
-ws.onmessage = (e) => {
-  const msg = JSON.parse(e.data);
-  if (msg.type === 'attached') {
-    console.log('已 ATTACH：', msg.attached);
-    // {"1": 9, "2": 10}
-  }
-  if (msg.type === 'done') {
-    console.log('腳本執行完畢');
-  }
-};
-```

@@ -237,6 +237,8 @@ pip install -r requirements.txt
 python main.py
 ```
 
+> 若已打包為 EXE，可直接執行 `server/dist/ServoControllerServer.exe`（名稱依打包設定可能略有不同）
+
 啟動後 Console 顯示：
 ```
 ╔══════════════════════════════════════╗
@@ -264,6 +266,120 @@ python build.py --clean
 3. 選擇 COM port → 點 [CONNECT]
 4. Servo 管理區：設定腳位 → 點 [ATTACH]
 5. 單步測試 或 腳本編輯器 執行動作
+```
+
+### Server 架構（詳細）
+
+`server/` 採用「FastAPI + WebSocket + Serial 管理器」三層設計：
+
+- `main.py`：執行入口，啟動 Uvicorn（預設 `127.0.0.1:7070`）
+- `server.py`：
+    - 定義 REST API（例如 `/api/connect`、`/api/attach`、`/api/run`）
+    - 管理 WebSocket 連線，將狀態推播到前端
+    - 驗證請求資料（Pydantic models）
+    - 協調「前端請求 → 序列埠命令」流程
+- `serial_manager.py`：
+    - 封裝 PySerial 開關連線、讀寫、背景讀取執行緒
+    - 維護已 attach 清單（`sid -> pin`）
+    - 實作腳本送出（`LOOP`/`BEGIN`/`STEP`/`END`）
+    - 以 `attach_servo_and_wait` 等待 Arduino 回覆 `OK ATTACH`，避免 attach 後太快執行 step
+- `static/index.html`：單頁式前端（無框架），透過 HTTP + WebSocket 與後端互動
+
+資料流：
+
+1. Web UI 或 curl 呼叫 REST API
+2. `server.py` 驗證並轉給 `serial_manager.py`
+3. `serial_manager.py` 送出 Serial 指令到 Arduino
+4. Arduino 回傳狀態，後端同步並透過 WebSocket 回推前端
+
+### Web UI 架構（詳細）
+
+`server/static/index.html` 主要分為 4 個區塊：
+
+- 連線控制區：掃描 COM、連線/斷線、顯示狀態
+- Servo 管理區：S1-S6 pin 設定、Attach/Detach、同步附掛狀態
+- 單步測試區：設定單次 `STEP` 參數立即測試
+- 腳本編輯區：
+    - 建立多筆 `STEP`
+    - Loop 開關
+    - 匯入/匯出 JSON（可包含 `attach_cmds`、`servos`）
+    - 一鍵執行 `/api/run`
+
+前端與後端互動方式：
+
+- HTTP：執行操作（connect/attach/run/stop）
+- WebSocket：接收即時事件（目前 attached 狀態、running/idle、錯誤訊息）
+
+### API 與操作方式
+
+常用 API：
+
+- `POST /api/connect`：連接指定 COM port
+- `POST /api/disconnect`：中斷連線
+- `POST /api/attach`：單顆 attach
+- `POST /api/detach`：單顆 detach
+- `POST /api/run`：執行腳本（可含 `attach_cmds`）
+- `POST /api/stop`：停止執行
+
+建議操作順序：
+
+1. 先 `/api/connect`
+2. 準備 attach（手動 attach 或在 run JSON 內放 `attach_cmds` / `servos`）
+3. 呼叫 `/api/run`
+4. 必要時 `/api/stop`
+
+### curl 使用方式
+
+先連線：
+
+```bash
+curl.exe -X POST "http://127.0.0.1:7070/api/connect" ^
+    -H "Content-Type: application/json" ^
+    -d "{\"port\":\"COM3\"}"
+```
+
+以 JSON 檔執行腳本（你提供的指令）：
+
+```bash
+curl.exe -X POST http://127.0.0.1:7070/api/run -H "Content-Type: application/json" --data-binary "@servo_script_with_attach.json"
+```
+
+`servo_script_with_attach.json` 建議格式：
+
+```json
+{
+    "loop": false,
+    "attach_cmds": [
+        "ATTACH 1 9",
+        "ATTACH 2 10"
+    ],
+    "servos": {
+        "1": 9,
+        "2": 10
+    },
+    "steps": [
+        {
+            "delay_ms": 200,
+            "servo_id": 1,
+            "angle": 90,
+            "speed": 60,
+            "duration_ms": 300,
+            "home": 1
+        }
+    ]
+}
+```
+
+停止腳本：
+
+```bash
+curl.exe -X POST "http://127.0.0.1:7070/api/stop"
+```
+
+中斷連線：
+
+```bash
+curl.exe -X POST "http://127.0.0.1:7070/api/disconnect"
 ```
 
 ### 外部程式呼叫
