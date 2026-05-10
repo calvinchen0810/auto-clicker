@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -93,18 +93,16 @@ input[type=checkbox]{width:13px;height:13px;accent-color:var(--amber);cursor:poi
 #script-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
 /* Step form */
-#step-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;padding:8px 10px 4px}
-#step-grid label{color:var(--fg2);font-size:11px;align-self:center;white-space:nowrap}
-#step-grid input{width:72px}
+#step-grid{padding:8px 10px 4px}
+.step-mini-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.step-mini-table th{background:var(--card);color:var(--fg2);font-size:9px;letter-spacing:1px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--brite);font-weight:normal}
+.step-mini-table td{padding:3px 6px;border-bottom:1px solid var(--border)}
+.step-mini-table td input[type=number]{width:62px;padding:2px 4px}
 .sid-input{color:var(--amber) !important;font-weight:bold}
-.home-row{display:flex;align-items:center;gap:7px;padding:4px 10px 6px}
-.home-row label{color:var(--fg2);font-size:11px}
-.hbtn{padding:3px 9px;font-size:11px}
-.hbtn.active-green{background:rgba(34,197,94,.18);border-color:var(--green2);color:var(--green)}
-.hbtn.active-amber{background:rgba(245,158,11,.18);border-color:#92400e;color:var(--amber)}
-#canvas-area{display:flex;align-items:center;gap:10px;padding:2px 10px 8px}
+#canvas-area{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 10px 4px}
 #home-desc{font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--green)}
 #step-btns{display:flex;gap:6px;padding:0 10px 8px}
+.step-home-cell{text-align:center;white-space:nowrap}
 
 /* Script */
 #script-tb{display:flex;align-items:center;gap:5px;padding:6px 10px;
@@ -127,7 +125,27 @@ td input.sid-col{color:var(--amber)}
 .home-sel{width:44px;font-size:11px;padding:2px 3px;text-align:center}
 .del-btn{background:none;border:none;color:var(--fg3);padding:2px 5px;font-size:12px;cursor:pointer}
 .del-btn:hover{color:var(--red)}
-#add-row{padding:7px 10px;border-top:1px solid var(--border);flex-shrink:0}
+.home-col{text-align:center}
+.home-switch{position:relative;display:inline-block;width:36px;height:20px;vertical-align:middle}
+.home-switch input{opacity:0;width:0;height:0;position:absolute}
+.home-slider{position:absolute;inset:0;cursor:pointer;background:var(--input);border:1px solid var(--border);border-radius:999px;transition:.15s}
+.home-slider:before{content:'';position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--fg2);transition:.15s}
+.home-switch input:checked + .home-slider{background:rgba(34,197,94,.2);border-color:var(--green2)}
+.home-switch input:checked + .home-slider:before{transform:translateX(16px);background:var(--green)}
+.home-mark{display:inline-block;width:14px;margin-left:6px;font-family:var(--mono);font-size:11px;color:var(--fg2);text-align:left}
+.pop-input{cursor:pointer !important}
+.pop-input:hover{background:var(--hover) !important;border-color:var(--green2) !important}
+
+/* Popover Slider */
+.popover{position:fixed;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px;box-shadow:0 10px 25px rgba(0,0,0,.5);z-index:9999;display:none;flex-direction:column;gap:8px;min-width:200px}
+.popover.show{display:flex}
+.popover-title{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--fg2)}
+.popover-input{display:flex;align-items:center;gap:8px}
+.popover-input input[type=range]{flex:1;height:6px;background:var(--border);border:none;border-radius:3px;outline:none;-webkit-appearance:none;appearance:none}
+.popover-input input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--green);cursor:pointer}
+.popover-input input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--green);border:none;cursor:pointer}
+.popover-input input[type=number]{width:60px;text-align:center;padding:4px 6px;font-size:12px}
+
 #empty-hint{padding:20px;text-align:center;color:var(--fg3);font-family:var(--mono);font-size:11px}
 
 /* Right col */
@@ -186,8 +204,8 @@ td input.sid-col{color:var(--amber)}
   <span id="state-text" style="color:var(--fg2)">DISCONNECTED</span>
   <span id="port-badge" style="display:none"></span>
   <div class="tb-sep"></div>
-  <select id="port-select"><option value="">— 自動偵測 —</option></select>
-  <button id="btn-refresh" title="刷新">⟳</button>
+  <select id="port-select"><option value="">— Auto Detect —</option></select>
+  <button id="btn-refresh" title="Refresh">⟳</button>
   <button id="btn-conn" class="btn-green">CONNECT</button>
   <div class="spacer"></div>
   <span id="http-label">HTTP :7070</span>
@@ -199,17 +217,17 @@ td input.sid-col{color:var(--amber)}
   <!-- Left: Servo Manager -->
   <div id="left-col">
     <div id="servo-panel" class="panel">
-      <div class="ph">Servo 管理</div>
+      <div class="ph">Servo Manager</div>
       <div id="servo-list"></div>
       <div id="servo-bulk">
-        <button class="btn-green btn-sm" onclick="attachAll()" style="flex:1">全部 ATTACH</button>
-        <button class="btn-red btn-sm"   onclick="detachAll()" style="flex:1">全部 DETACH</button>
+        <button class="btn-green btn-sm" onclick="attachAll()" style="flex:1">ATTACH ALL</button>
+        <button class="btn-red btn-sm"   onclick="detachAll()" style="flex:1">DETACH ALL</button>
       </div>
     </div>
 
     <!-- Quick commands -->
     <div class="panel" style="flex-shrink:0">
-      <div class="ph">快速指令</div>
+      <div class="ph">Quick Commands</div>
       <div id="quick-row">
         <button class="btn-blue  btn-sm" onclick="rawCmd('PING')">PING</button>
         <button class="btn-amber btn-sm" onclick="rawCmd('STATUS')">STATUS</button>
@@ -223,46 +241,56 @@ td input.sid-col{color:var(--amber)}
 
     <!-- Single Step -->
     <div id="step-panel" class="panel">
-      <div class="ph">單步測試</div>
-      <div id="step-grid">
-        <label>延遲 ms</label>  <input type="number" id="s-delay" value="0"   min="0" max="65535">
-        <label>Servo ID</label> <input type="number" id="s-sid"   value="1"   min="1" max="6" class="sid-input">
-        <label>角度 °</label>   <input type="number" id="s-angle" value="90"  min="0" max="180" oninput="drawCanvas()">
-        <label>速度</label>     <input type="number" id="s-speed" value="60"  min="1" max="100">
-        <label>停留 ms</label>  <input type="number" id="s-dur"   value="300" min="0" max="65535">
+      <div class="ph">Single Step</div>
+      <div id="canvas-area">
+        <canvas id="servo-canvas" width="96" height="92"></canvas>
+        <div id="home-desc">home=1<br>After done<br>Return to 0°</div>
       </div>
-      <div class="home-row">
-        <label>歸位</label>
-        <button class="hbtn active-green" id="hbtn1" onclick="setHome(1)">1 回 0°</button>
-        <button class="hbtn" id="hbtn0" onclick="setHome(0)">0 停住</button>
-        <div id="canvas-area" style="margin-left:8px">
-          <canvas id="servo-canvas" width="96" height="76"></canvas>
-          <div id="home-desc">home=1<br>執行完<br>回到 0°</div>
-        </div>
+      <div id="step-grid">
+        <table class="step-mini-table">
+          <thead><tr>
+            <th>DELAY ms</th><th>SID</th><th>ANGLE °</th><th>SPEED</th><th>HOLD ms</th><th>HOME</th>
+          </tr></thead>
+          <tbody><tr>
+            <td><input type="number" id="s-delay" value="1000" min="0" max="30000" step="500"></td>
+            <td><input type="number" id="s-sid" value="1" min="1" max="6" class="sid-input"></td>
+            <td><input type="number" id="s-angle" value="90" min="0" max="180" oninput="drawCanvas()"></td>
+            <td><input type="number" id="s-speed" value="60" min="1" max="100"></td>
+            <td><input type="number" id="s-dur" value="1000" min="0" max="30000" step="500"></td>
+            <td class="step-home-cell">
+              <label class="home-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="s-home" checked onchange="setHome(this.checked?1:0)" onclick="event.stopPropagation()">
+                <span class="home-slider"></span>
+              </label>
+              <span class="home-mark" id="s-home-mark">1</span>
+            </td>
+          </tr></tbody>
+        </table>
       </div>
       <div id="step-btns">
-        <button class="btn-green" onclick="sendStep()">▶ 送出單步</button>
-        <button onclick="previewStep()">預覽指令</button>
+        <button class="btn-green" onclick="sendStep()">▶ Send Step</button>
+        <button onclick="previewStep()">Preview Command</button>
+        <button onclick="addStepFromUI()">＋ Add to Script</button>
       </div>
     </div>
 
     <!-- Script Editor -->
     <div id="script-panel" class="panel">
-      <div class="ph">腳本編輯器
+      <div class="ph">Script Editor
         <span id="step-count" style="font-size:9px;color:var(--green2);
           background:rgba(34,197,94,.08);border:1px solid var(--border);
           padding:1px 5px;border-radius:2px;margin-left:4px">0 STEPS</span>
       </div>
       <div id="script-tb">
-        <button class="btn-sm" onclick="loadExample()">載入範例</button>
-        <button class="btn-sm" onclick="importJSON()">匯入 JSON</button>
-        <button class="btn-sm" onclick="exportJSON()">匯出 JSON</button>
+        <button class="btn-sm" onclick="importJSON()">Import JSON</button>
+        <button class="btn-sm" onclick="exportJSON()">Export JSON</button>
         <div class="tb-sep2"></div>
-        <label><input type="checkbox" id="loop-cb"> 循環</label>
+        <label><input type="checkbox" id="export-attach-cb" checked> Include Attach Cmd</label>
+        <label><input type="checkbox" id="loop-cb"> Loop</label>
         <div class="spacer"></div>
-        <button class="btn-green btn-sm" id="btn-run-script" onclick="runScript(false)">▶ 執行</button>
-        <button class="btn-amber btn-sm" id="btn-loop-script" onclick="runScript(true)">↺ 循環執行</button>
-        <button class="btn-red   btn-sm" onclick="apiStop()">■ STOP</button>
+        <button class="btn-green btn-sm" id="btn-run-script" onclick="runScript(false)">▶ Run</button>
+        <button class="btn-amber btn-sm" id="btn-loop-script" onclick="runScript(true)">↺ Loop Run</button>
+        <button class="btn-red   btn-sm" id="btn-stop" onclick="apiStop()">■ STOP</button>
       </div>
       <div id="table-wrap">
         <table>
@@ -274,20 +302,17 @@ td input.sid-col{color:var(--amber)}
           </tr></thead>
           <tbody id="steps-tbody"></tbody>
         </table>
-        <div id="empty-hint">// NO STEPS — CLICK ADD TO BEGIN</div>
-      </div>
-      <div id="add-row">
-        <button class="btn-green btn-sm" onclick="addStep()">＋ ADD STEP</button>
+        <div id="empty-hint">// NO STEPS YET</div>
       </div>
     </div>
   </div>
 
-  <!-- Right: Progress + Controls + Serial -->
+  <!-- Right: Progress + Serial -->
   <div id="right-col">
 
     <!-- Progress -->
     <div class="panel" style="flex-shrink:0">
-      <div class="ph">執行進度</div>
+      <div class="ph">Progress</div>
       <div id="prog-nums">
         <span id="prog-cur">—</span><span id="prog-sep">/</span>
         <span id="prog-tot">—</span>
@@ -296,16 +321,6 @@ td input.sid-col{color:var(--amber)}
       </div>
       <div id="prog-track"><div id="prog-fill"></div></div>
       <div id="last-msg"></div>
-    </div>
-
-    <!-- Controls -->
-    <div class="panel" style="flex-shrink:0">
-      <div class="ph">執行控制</div>
-      <div id="ctrl-btns">
-        <button class="btn-green" id="btn-run"  onclick="runScript(false)">▶ RUN ONCE</button>
-        <button class="btn-amber" id="btn-loop" onclick="runScript(true)">↺ LOOP</button>
-        <button class="btn-red"   id="btn-stop" onclick="apiStop()">■ STOP</button>
-      </div>
     </div>
 
     <!-- Serial Monitor -->
@@ -318,9 +333,9 @@ td input.sid-col{color:var(--amber)}
       <div id="serial-out"></div>
       <div id="manual-row">
         <span id="manual-prefix">>></span>
-        <input id="manual-input" placeholder="手動輸入指令…"
+         <input id="manual-input" placeholder="Enter command..."
                onkeydown="if(event.key==='Enter')manualSend()">
-        <button class="btn-sm" onclick="manualSend()">送出</button>
+         <button class="btn-sm" onclick="manualSend()">Send</button>
       </div>
     </div>
   </div>
@@ -343,10 +358,12 @@ let logLines   = [];
 let wsConn     = null;
 let stepIdCnt  = 0;
 let dragSrc    = null;
+let importedServos = {};
+let importedAttachCmds = [];
 
-// Servo 狀態 {sid: pin} or {}
+// Servo state {sid: pin} or {}
 let attachedMap = {};
-// 本地 pin 設定（UI 用）
+// Local pin settings (for UI)
 let pinSettings = [...DEFAULT_PINS];
 
 const isConn = () => ['idle','running'].includes(getState());
@@ -358,12 +375,12 @@ const getState = () => _state;
 // ════════════════════════════════════════
 function wsConnect() {
   wsConn = new WebSocket(`ws://${location.host}/ws`);
-  wsConn.onopen = () => addLog('WS 已連線', 'c-dim');
+  wsConn.onopen = () => addLog('WS connected', 'c-dim');
   wsConn.onmessage = e => {
     try { handleWS(JSON.parse(e.data)); } catch(_){}
   };
   wsConn.onclose = () => {
-    addLog('WS 中斷，3秒後重連…','c-err');
+    addLog('WS disconnected, reconnecting in 3s...','c-err');
     setTimeout(wsConnect, 3000);
   };
   wsConn.onerror = () => wsConn.close();
@@ -373,7 +390,7 @@ function handleWS(msg) {
   if (msg.type === 'serial')   addLog('← '+msg.line, classifyLine(msg.line));
   else if (msg.type === 'status') applyStatus(msg);
   else if (msg.type === 'attached') { attachedMap = intKeys(msg.attached||{}); renderServoList(); }
-  else if (msg.type === 'done')   { applyStatus({state:'idle'}); setProgress(null,null); setLastMsg('✔ 執行完畢'); document.getElementById('loop-badge').style.display='none'; }
+  else if (msg.type === 'done')   { applyStatus({state:'idle'}); setProgress(null,null); setLastMsg('✔ Completed'); document.getElementById('loop-badge').style.display='none'; }
   else if (msg.type === 'error')  { addLog('ERR '+msg.message,'c-err'); setLastMsg('✘ '+msg.message); }
 }
 
@@ -414,8 +431,10 @@ function applyStatus(msg) {
   const conn=isConn(), run=_state==='running';
   document.getElementById('btn-conn').textContent      = conn ? 'DISCONNECT':'CONNECT';
   document.getElementById('btn-conn').className        = conn ? 'btn-red':'btn-green';
-  document.getElementById('btn-run').disabled          = !conn||run;
-  document.getElementById('btn-loop').disabled         = !conn||run;
+  const btnRun = document.getElementById('btn-run');
+  const btnLoop = document.getElementById('btn-loop');
+  if (btnRun) btnRun.disabled = !conn||run;
+  if (btnLoop) btnLoop.disabled = !conn||run;
   document.getElementById('btn-run-script').disabled   = !conn||run;
   document.getElementById('btn-loop-script').disabled  = !conn||run;
   document.getElementById('btn-stop').disabled         = !conn||!run;
@@ -449,7 +468,7 @@ function renderServoList() {
       <span class="srv-dot ${isAtt?'on':''}">●</span>
       <span class="srv-pin-label ${isAtt?'on':''}">D${pin}</span>
       ${isAtt
-        ? `<span style="font-family:var(--mono);font-size:10px;color:var(--green);flex:1">已連接</span>`
+        ? `<span style="font-family:var(--mono);font-size:10px;color:var(--green);flex:1">Attached</span>`
         : `<input type="number" class="srv-pin" value="${pin}" min="2" max="13"
              oninput="pinSettings[${i}]=parseInt(this.value)||${DEFAULT_PINS[i]}"
              onchange="pinSettings[${i}]=parseInt(this.value)||${DEFAULT_PINS[i]}">`
@@ -476,7 +495,7 @@ async function attachServo(sid, idx) {
     renderServoList();
     addLog(`→ ATTACH ${sid} ${pin}`, 'c-send');
   } else {
-    addLog('✘ ATTACH 失敗: '+(data.detail||''), 'c-err');
+    addLog('✘ ATTACH failed: '+(data.detail||''), 'c-err');
   }
 }
 
@@ -491,7 +510,7 @@ async function detachServo(sid) {
     renderServoList();
     addLog(`→ DETACH ${sid}`, 'c-send');
   } else {
-    addLog('✘ DETACH 失敗: '+(data.detail||''), 'c-err');
+    addLog('✘ DETACH failed: '+(data.detail||''), 'c-err');
   }
 }
 
@@ -506,8 +525,8 @@ async function attachAll() {
   if (res.ok) {
     attachedMap = intKeys(data.attached||{});
     renderServoList();
-    addLog('→ 全部 ATTACH', 'c-send');
-  } else addLog('✘ ATTACH_ALL 失敗', 'c-err');
+    addLog('→ ATTACH ALL', 'c-send');
+  } else addLog('✘ ATTACH_ALL failed', 'c-err');
 }
 
 async function detachAll() {
@@ -516,8 +535,8 @@ async function detachAll() {
   if (res.ok) {
     attachedMap = {};
     renderServoList();
-    addLog('→ 全部 DETACH', 'c-send');
-  } else addLog('✘ DETACH_ALL 失敗', 'c-err');
+    addLog('→ DETACH ALL', 'c-send');
+  } else addLog('✘ DETACH_ALL failed', 'c-err');
 }
 
 // ════════════════════════════════════════
@@ -528,7 +547,7 @@ async function refreshPorts() {
   const data = await res.json();
   const sel  = document.getElementById('port-select');
   const cur  = sel.value;
-  sel.innerHTML = '<option value="">— 自動偵測 —</option>';
+  sel.innerHTML = '<option value="">— Auto Detect —</option>';
   (data.ports||[]).forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.port;
@@ -543,7 +562,7 @@ async function toggleConnect() {
     await fetch('/api/disconnect', {method:'POST'});
     applyStatus({state:'disconnected'});
     attachedMap = {}; renderServoList();
-    addLog('已中斷連線', 'c-dim');
+    addLog('Disconnected', 'c-dim');
   } else {
     const port = document.getElementById('port-select').value || undefined;
     const res  = await fetch('/api/connect', {
@@ -551,8 +570,8 @@ async function toggleConnect() {
       body: JSON.stringify({port: port||null})
     });
     const data = await res.json();
-    if (res.ok) addLog(`已連線到 ${data.port}`, 'c-ok');
-    else addLog('✘ 連線失敗: '+(data.detail||''), 'c-err');
+    if (res.ok) addLog(`Connected to ${data.port}`, 'c-ok');
+    else addLog('✘ Connection failed: '+(data.detail||''), 'c-err');
   }
 }
 
@@ -561,21 +580,32 @@ async function toggleConnect() {
 // ════════════════════════════════════════
 function setHome(v) {
   homeVal = v;
-  document.getElementById('hbtn1').className = 'hbtn'+(v===1?' active-green':'');
-  document.getElementById('hbtn0').className = 'hbtn'+(v===0?' active-amber':'');
+  const homeSwitch = document.getElementById('s-home');
+  const homeMark = document.getElementById('s-home-mark');
+  if (homeSwitch) homeSwitch.checked = v === 1;
+  if (homeMark) homeMark.textContent = v === 1 ? '1' : '0';
   const desc = document.getElementById('home-desc');
   desc.style.color = v===1 ? 'var(--green)' : 'var(--amber)';
-  desc.innerHTML   = v===1 ? 'home=1<br>執行完<br>回到 0°' : 'home=0<br>停在<br>目標角度';
+  desc.innerHTML   = v===1 ? 'home=1<br>After done<br>Return to 0°' : 'home=0<br>Stay at<br>Target angle';
   drawCanvas();
 }
 
+function normalizeMs(v) {
+  const n = isNaN(parseInt(v)) ? 0 : parseInt(v);
+  return Math.max(0, Math.min(30000, Math.round(n / 500) * 500));
+}
+
 function getStepParams() {
+  const delay = normalizeMs(document.getElementById('s-delay').value);
+  const hold  = normalizeMs(document.getElementById('s-dur').value);
+  document.getElementById('s-delay').value = delay;
+  document.getElementById('s-dur').value = hold;
   return {
-    delay_ms:    parseInt(document.getElementById('s-delay').value)||0,
+    delay_ms:    delay,
     servo_id:    parseInt(document.getElementById('s-sid').value)||1,
     angle:       parseInt(document.getElementById('s-angle').value)||0,
     speed:       parseInt(document.getElementById('s-speed').value)||60,
-    duration_ms: parseInt(document.getElementById('s-dur').value)||0,
+    duration_ms: hold,
     home:        homeVal,
   };
 }
@@ -586,7 +616,7 @@ async function sendStep() {
   drawCanvas();
   if (!attachedMap[sid]) {
     const pin = pinSettings[sid-1];
-    if (!confirm(`Servo ${sid} 尚未 ATTACH，是否先以 D${pin} 進行 ATTACH？`)) return;
+    if (!confirm(`Servo ${sid} is not attached yet. Attach first on D${pin}?`)) return;
     await attachServo(sid, sid-1);
     await new Promise(r=>setTimeout(r,400));
   }
@@ -596,12 +626,12 @@ async function sendStep() {
   });
   const data = await res.json();
   if (res.ok) addLog(`→ STEP ${p.delay_ms} ${p.servo_id} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home}`, 'c-send');
-  else addLog('✘ '+(data.detail||'送出失敗'), 'c-err');
+  else addLog('✘ '+(data.detail||'Send failed'), 'c-err');
 }
 
 function previewStep() {
   const p = getStepParams(); drawCanvas();
-  addLog(`預覽: BEGIN 1 | STEP ${p.delay_ms} ${p.servo_id} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home} | END`, 'c-dim');
+  addLog(`Preview: BEGIN 1 | STEP ${p.delay_ms} ${p.servo_id} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home} | END`, 'c-dim');
 }
 
 async function rawCmd(cmd) {
@@ -610,7 +640,7 @@ async function rawCmd(cmd) {
     body: JSON.stringify({cmd})
   });
   if (res.ok) addLog('→ '+cmd, 'c-send');
-  else addLog('✘ 未連線', 'c-err');
+  else addLog('✘ Not connected', 'c-err');
 }
 
 async function apiStop() {
@@ -626,15 +656,17 @@ function drawCanvas() {
   const c = document.getElementById('servo-canvas');
   const ctx = c.getContext('2d');
   const cx=48, cy=60, r=36;
+  const rad=angle*Math.PI/180;
   ctx.clearRect(0,0,c.width,c.height);
   ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,0,false);
   ctx.strokeStyle='#2a2a38'; ctx.lineWidth=2; ctx.stroke();
   if (homeVal===1&&angle>0) {
-    ctx.beginPath(); ctx.arc(cx,cy,r-6,Math.PI,Math.PI-angle*Math.PI/180,true);
+    // Draw return guide on the inner upper semicircle from 0°(right) to current angle.
+    ctx.beginPath(); ctx.arc(cx,cy,r-6,0,-rad,true);
     ctx.strokeStyle='#1a4a1a'; ctx.lineWidth=1;
     ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
   }
-  const rad=Math.PI-angle*Math.PI/180;
+  // 0 -> 180 maps from right to left on the upper semicircle (counterclockwise)
   const ex=cx+r*Math.cos(rad), ey=cy-r*Math.sin(rad);
   ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(ex,ey);
   ctx.strokeStyle=homeVal===1?'#22c55e':'#f59e0b'; ctx.lineWidth=2.5; ctx.stroke();
@@ -651,10 +683,16 @@ function drawCanvas() {
 //  Script Editor
 // ════════════════════════════════════════
 function addStep(s) {
-  const row = s || {delay_ms:0, servo_id:1, angle:90, speed:60, duration_ms:300, home:1};
+  const row = s || {delay_ms:1000, servo_id:1, angle:90, speed:60, duration_ms:1000, home:1};
   row._id = ++stepIdCnt;
   steps.push(row);
   renderSteps();
+}
+
+function addStepFromUI() {
+  const p = getStepParams();
+  addStep(p);
+  addLog(`→ Added to script: delay=${p.delay_ms} sid=${p.servo_id} angle=${p.angle} speed=${p.speed} hold=${p.duration_ms} home=${p.home}`, 'c-send');
 }
 
 function delStep(id) { steps=steps.filter(s=>s._id!==id); renderSteps(); }
@@ -671,46 +709,250 @@ function renderSteps() {
     tr.dataset.id = s._id; tr.draggable = true;
     tr.innerHTML = `
       <td class="drag-col">⠿</td>
-      <td><input type="number" value="${s.delay_ms}"    min="0"   max="65535" onchange="updStep(${s._id},'delay_ms',this.value)"></td>
-      <td><input type="number" value="${s.servo_id}"   min="1"   max="6"     onchange="updStep(${s._id},'servo_id',this.value)" class="sid-col"></td>
-      <td><input type="number" value="${s.angle}"       min="0"   max="180"   onchange="updStep(${s._id},'angle',this.value)"></td>
-      <td><input type="number" value="${s.speed}"       min="1"   max="100"   onchange="updStep(${s._id},'speed',this.value)"></td>
-      <td><input type="number" value="${s.duration_ms}" min="0"   max="65535" onchange="updStep(${s._id},'duration_ms',this.value)"></td>
-      <td><select class="home-sel" onchange="updStep(${s._id},'home',this.value)">
-        <option value="1" ${s.home===1?'selected':''}>1 ↩</option>
-        <option value="0" ${s.home===0?'selected':''}>0 ✋</option>
-      </select></td>
+      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="delay_ms" data-min="0" data-max="30000" data-step="500" value="${s.delay_ms}" min="0"   max="30000" step="500" onchange="updStep(${s._id},'delay_ms',this.value)"></td>
+      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="servo_id" data-min="1" data-max="6" value="${s.servo_id}"   min="1"   max="6"     onchange="updStep(${s._id},'servo_id',this.value)" class="sid-col"></td>
+      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="angle" data-min="0" data-max="180" value="${s.angle}"       min="0"   max="180"   onchange="updStep(${s._id},'angle',this.value)"></td>
+      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="speed" data-min="1" data-max="100" value="${s.speed}"       min="1"   max="100"   onchange="updStep(${s._id},'speed',this.value)"></td>
+      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="duration_ms" data-min="0" data-max="30000" data-step="500" value="${s.duration_ms}" min="0"   max="30000" step="500" onchange="updStep(${s._id},'duration_ms',this.value)"></td>
+      <td class="home-col">
+        <label class="home-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" ${s.home===1?'checked':''} onchange="setStepHome(${s._id}, this.checked)" onclick="event.stopPropagation()">
+          <span class="home-slider"></span>
+        </label>
+        <span class="home-mark">${s.home===1?'1':'0'}</span>
+      </td>
       <td><button class="del-btn" onclick="delStep(${s._id})">✕</button></td>`;
 
     tr.addEventListener('dragstart', e => { dragSrc=i; tr.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
     tr.addEventListener('dragend',   () => { tr.classList.remove('dragging'); tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over')); });
     tr.addEventListener('dragover',  e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over')); tr.classList.add('drag-over'); });
     tr.addEventListener('drop',      e => { e.preventDefault(); if(dragSrc!==null&&dragSrc!==i){ const m=steps.splice(dragSrc,1)[0]; steps.splice(i,0,m); dragSrc=null; renderSteps(); } });
+    
+    // Add click handlers for popover sliders
+    tr.querySelectorAll('.pop-input').forEach(inp => {
+      inp.addEventListener('click', e => {
+        e.stopPropagation();
+        showPopover(inp);
+      });
+    });
+    
     tbody.appendChild(tr);
+  });
+}
+
+function showPopover(inp) {
+  const id = inp.dataset.id;
+  const key = inp.dataset.key;
+  const min = parseInt(inp.dataset.min);
+  const max = parseInt(inp.dataset.max);
+  const step = parseInt(inp.dataset.step || '1');
+  const reverse = key === 'angle';
+  const val = parseInt(inp.value);
+  
+  const popover = document.getElementById('popover') || (() => {
+    const p = document.createElement('div');
+    p.id = 'popover';
+    p.className = 'popover';
+    p.innerHTML = `
+      <div class="popover-title"></div>
+      <div class="popover-input">
+        <input type="range" id="pop-range" min="" max="" value="">
+        <input type="number" id="pop-number" min="" max="">
+      </div>`;
+    document.body.appendChild(p);
+    return p;
+  })();
+  
+  popover.querySelector('.popover-title').textContent = key.toUpperCase();
+  const rangeInput = popover.querySelector('#pop-range');
+  const numInput = popover.querySelector('#pop-number');
+  rangeInput.min = min;
+  rangeInput.max = max;
+  rangeInput.step = step;
+  rangeInput.style.direction = reverse ? 'rtl' : 'ltr';
+  rangeInput.value = val;
+  numInput.min = min;
+  numInput.max = max;
+  numInput.step = step;
+  numInput.value = val;
+  
+  const update = (v) => {
+    rangeInput.value = v;
+    numInput.value = v;
+    inp.value = v;
+    updStep(id, key, v);
+  };
+  
+  rangeInput.oninput = () => update(rangeInput.value);
+  numInput.oninput = () => update(numInput.value);
+  
+  const rect = inp.getBoundingClientRect();
+  popover.style.left = (rect.left + window.scrollX) + 'px';
+  popover.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  popover.classList.add('show');
+  
+  const closePopover = () => {
+    popover.classList.remove('show');
+    document.removeEventListener('click', closePopover);
+  };
+  setTimeout(() => document.addEventListener('click', closePopover), 0);
+}
+
+function showSinglePopover(inp, title, min, max, step, onChange, reverse=false, avoidEl=null) {
+  const val = parseInt(inp.value);
+  const popover = document.getElementById('popover') || (() => {
+    const p = document.createElement('div');
+    p.id = 'popover';
+    p.className = 'popover';
+    p.innerHTML = `
+      <div class="popover-title"></div>
+      <div class="popover-input">
+        <input type="range" id="pop-range" min="" max="" value="">
+        <input type="number" id="pop-number" min="" max="">
+      </div>`;
+    document.body.appendChild(p);
+    return p;
+  })();
+
+  popover.querySelector('.popover-title').textContent = title;
+  const rangeInput = popover.querySelector('#pop-range');
+  const numInput = popover.querySelector('#pop-number');
+  rangeInput.min = min;
+  rangeInput.max = max;
+  rangeInput.step = step;
+  rangeInput.style.direction = reverse ? 'rtl' : 'ltr';
+  rangeInput.value = val;
+  numInput.min = min;
+  numInput.max = max;
+  numInput.step = step;
+  numInput.value = val;
+
+  const update = (v) => {
+    let n = isNaN(parseInt(v)) ? min : parseInt(v);
+    n = Math.max(min, Math.min(max, n));
+    if (step > 1) n = Math.round(n / step) * step;
+    rangeInput.value = n;
+    numInput.value = n;
+    inp.value = n;
+    onChange(n);
+  };
+
+  rangeInput.oninput = () => update(rangeInput.value);
+  numInput.oninput = () => update(numInput.value);
+
+  popover.classList.add('show');
+
+  const rect = inp.getBoundingClientRect();
+  const popRect = popover.getBoundingClientRect();
+  const margin = 8;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = rect.left;
+  let top = rect.bottom + 4;
+
+  if (left + popRect.width > vw - margin) left = vw - popRect.width - margin;
+  if (left < margin) left = margin;
+  if (top + popRect.height > vh - margin) top = rect.top - popRect.height - 4;
+  if (top < margin) top = margin;
+
+  if (avoidEl) {
+    const avoid = avoidEl.getBoundingClientRect();
+    const overlap = !(left + popRect.width < avoid.left || left > avoid.right || top + popRect.height < avoid.top || top > avoid.bottom);
+    if (overlap) {
+      const leftCandidate = rect.left - popRect.width - 6;
+      const rightCandidate = rect.right + 6;
+      if (leftCandidate >= margin) {
+        left = leftCandidate;
+      } else if (rightCandidate + popRect.width <= vw - margin) {
+        left = rightCandidate;
+      } else {
+        top = Math.max(margin, avoid.top - popRect.height - 6);
+      }
+    }
+  }
+
+  popover.style.left = (left + window.scrollX) + 'px';
+  popover.style.top = (top + window.scrollY) + 'px';
+
+  const closePopover = () => {
+    popover.classList.remove('show');
+    document.removeEventListener('click', closePopover);
+  };
+  setTimeout(() => document.addEventListener('click', closePopover), 0);
+}
+
+function bindSingleStepPopovers() {
+  const bindings = [
+    { id:'s-delay', title:'DELAY_MS', min:0, max:30000, step:500 },
+    { id:'s-sid',   title:'SERVO_ID', min:1, max:6,     step:1   },
+    { id:'s-angle', title:'ANGLE',    min:0, max:180,   step:1, reverse:true },
+    { id:'s-speed', title:'SPEED',    min:1, max:100,   step:1   },
+    { id:'s-dur',   title:'HOLD_MS',  min:0, max:30000, step:500 },
+  ];
+
+  bindings.forEach(cfg => {
+    const el = document.getElementById(cfg.id);
+    if (!el) return;
+    el.classList.add('pop-input');
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const avoidEl = document.getElementById('canvas-area');
+      showSinglePopover(el, cfg.title, cfg.min, cfg.max, cfg.step, () => {
+        if (cfg.id === 's-angle') drawCanvas();
+      }, !!cfg.reverse, avoidEl);
+    });
   });
 }
 
 function updStep(id, key, val) {
   const s = steps.find(x=>x._id===id);
-  if (s) s[key] = ['home','servo_id'].includes(key) ? parseInt(val) : (isNaN(parseFloat(val))?0:parseInt(val));
+  if (s) {
+    const parsed = isNaN(parseFloat(val)) ? 0 : parseInt(val);
+    if (key === 'delay_ms' || key === 'duration_ms') {
+      s[key] = normalizeMs(parsed);
+    } else {
+      s[key] = ['home','servo_id'].includes(key) ? parseInt(val) : parsed;
+    }
+  }
 }
 
-function loadExample() {
-  steps = [];
-  [
-    {delay_ms:1000,servo_id:1,angle:90,speed:60,duration_ms:300,home:1},
-    {delay_ms:1000,servo_id:1,angle:90,speed:60,duration_ms:300,home:1},
-    {delay_ms:1000,servo_id:1,angle:90,speed:60,duration_ms:300,home:1},
-  ].forEach(s=>{ s._id=++stepIdCnt; steps.push(s); });
-  renderSteps();
+function setStepHome(id, checked) {
+  const s = steps.find(x=>x._id===id);
+  if (s) {
+    s.home = checked ? 1 : 0;
+    renderSteps();
+  }
 }
 
 function exportJSON() {
-  const data = {loop: document.getElementById('loop-cb').checked,
-                steps: steps.map(({_id,...s})=>s)};
+  const includeAttach = document.getElementById('export-attach-cb').checked;
+  let data;
+  let filename;
+  const exportedSteps = steps.map(({_id,...s})=>s);
+  if (includeAttach) {
+    const attachCmds = Object.entries(attachedMap)
+      .map(([sid, pin]) => ({sid: parseInt(sid), pin: parseInt(pin)}))
+      .sort((a, b) => a.sid - b.sid)
+      .map(x => `ATTACH ${x.sid} ${x.pin}`);
+    const hasSteps = exportedSteps.length > 0;
+    data = {
+      loop: hasSteps ? document.getElementById('loop-cb').checked : false,
+      servos: attachedMap,
+      attach_cmds: attachCmds,
+      steps: hasSteps ? exportedSteps : [],
+    };
+    filename = hasSteps ? 'servo_script_with_attach.json' : 'servo_attach.json';
+  } else {
+    data = {
+      loop: document.getElementById('loop-cb').checked,
+      steps: exportedSteps,
+    };
+    filename = 'servo_script.json';
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
-  a.download = 'servo_script.json'; a.click();
+  a.download = filename; a.click();
 }
 function importJSON() { document.getElementById('file-input').click(); }
 function handleImport(e) {
@@ -720,20 +962,29 @@ function handleImport(e) {
     try {
       const d=JSON.parse(ev.target.result);
       if (typeof d.loop==='boolean') document.getElementById('loop-cb').checked=d.loop;
+      importedServos = (d.servos && typeof d.servos === 'object') ? d.servos : {};
+      importedAttachCmds = Array.isArray(d.attach_cmds) ? d.attach_cmds.filter(x=>typeof x==='string') : [];
       if (Array.isArray(d.steps)) { steps=d.steps.map(s=>({...s,_id:++stepIdCnt})); renderSteps(); }
-    } catch { addLog('✘ JSON 格式錯誤','c-err'); }
+    } catch { addLog('✘ Invalid JSON format','c-err'); }
   };
   r.readAsText(file); e.target.value='';
 }
 
 async function runScript(forceLoop) {
-  if (!steps.length) { addLog('⚠ 腳本為空','c-err'); return; }
+  if (!steps.length && !importedAttachCmds.length) { addLog('⚠ Script is empty','c-err'); return; }
   const loop = forceLoop || document.getElementById('loop-cb').checked;
   document.getElementById('loop-badge').style.display = loop?'':'none';
-  const body = {loop, steps: steps.map(({_id,...s})=>s)};
+  const servosToSend = Object.keys(importedServos).length ? importedServos : attachedMap;
+  const body = {
+    loop,
+    servos: servosToSend,
+    attach_cmds: importedAttachCmds,
+    steps: steps.map(({_id,...s})=>s),
+  };
   const res  = await fetch('/api/run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const data = await res.json();
-  if (!res.ok) addLog('✘ '+(data.detail||'執行失敗'),'c-err');
+  if (!res.ok) addLog('✘ '+(data.detail||'Run failed'),'c-err');
+  else if (data.attach_only) addLog('→ ATTACH phase completed','c-send');
   else         addLog(`→ RUN ${steps.length} steps loop=${loop}`,'c-send');
 }
 
@@ -766,12 +1017,12 @@ function manualSend() {
 document.getElementById('btn-conn').onclick    = toggleConnect;
 document.getElementById('btn-refresh').onclick = refreshPorts;
 document.getElementById('s-angle').addEventListener('input', drawCanvas);
+bindSingleStepPopovers();
 
 applyStatus({state:'disconnected'});
 refreshPorts();
 wsConnect();
 drawCanvas();
-loadExample();
 renderServoList();
 setInterval(refreshPorts, 5000);
 </script>

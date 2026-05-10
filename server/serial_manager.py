@@ -32,6 +32,9 @@ class SerialManager:
         # 本地追蹤已 ATTACH 的 Servo {sid: pin}
         self._attached: dict[int, int] = {}
 
+        # Events signalled when Arduino confirms OK ATTACH for each sid
+        self._attach_events: dict[int, threading.Event] = {}
+
         self._on_line:       Optional[Callable[[str], None]] = None
         self._on_disconnect: Optional[Callable[[], None]]    = None
 
@@ -129,6 +132,28 @@ class SerialManager:
         if ok:
             self._attached[sid] = pin
         return ok
+
+    def attach_servo_and_wait(self, sid: int, pin: int, timeout: float = 3.0) -> bool:
+        """送出 ATTACH sid pin，然後阻塞等待 Arduino 回應 OK ATTACH 或逾時"""
+        if not self.is_connected:
+            return False
+        if not (1 <= sid <= MAX_SERVOS):
+            return False
+        evt = threading.Event()
+        self._attach_events[sid] = evt
+        ok = self.send(f"ATTACH {sid} {pin}")
+        if not ok:
+            self._attach_events.pop(sid, None)
+            return False
+        confirmed = evt.wait(timeout=timeout)
+        self._attach_events.pop(sid, None)
+        if confirmed:
+            self._attached[sid] = pin
+        else:
+            logger.warning(f"attach_servo_and_wait: timeout waiting for OK ATTACH sid={sid}")
+            # Assume attached anyway so script can proceed
+            self._attached[sid] = pin
+        return True
 
     def detach_servo(self, sid: int) -> bool:
         """送出 DETACH sid，更新本地狀態"""
@@ -228,7 +253,12 @@ class SerialManager:
             parts = line.split()
             if len(parts) >= 4:
                 try:
-                    self._attached[int(parts[2])] = int(parts[3])
+                    confirmed_sid = int(parts[2])
+                    self._attached[confirmed_sid] = int(parts[3])
+                    # Signal any waiting attach_servo_and_wait call
+                    evt = self._attach_events.get(confirmed_sid)
+                    if evt:
+                        evt.set()
                 except ValueError:
                     pass
         # OK DETACH sid

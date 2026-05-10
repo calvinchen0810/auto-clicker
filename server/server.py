@@ -6,6 +6,7 @@ FastAPI + WebSocket 伺服器（多 Servo 支援）
 import asyncio
 import json
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,24 @@ from pydantic import BaseModel, Field, field_validator
 from serial_manager import SerialManager, MAX_SERVOS
 
 logger = logging.getLogger(__name__)
+
+HOST = "127.0.0.1"
+PORT = 7070
+
+
+def print_banner(arduino_port: Optional[str] = None, host: str = HOST, port: int = PORT):
+        port_str = arduino_port or "Not detected"
+        print(f"""
+╔══════════════════════════════════════╗
+║     Servo Controller Server          ║
+╠══════════════════════════════════════╣
+║  Web UI : http://{host}:{port}         ║
+║  API    : http://{host}:{port}/docs    ║
+╠══════════════════════════════════════╣
+║  Arduino: {port_str:<28}║
+╚══════════════════════════════════════╝
+    Press Ctrl+C to stop
+""")
 
 
 def _html_path() -> Path:
@@ -39,14 +58,14 @@ class StepModel(BaseModel):
     home:        int = Field(1,  ge=0, le=1)
 
 class RunRequest(BaseModel):
-    steps: list[StepModel] = Field(..., min_length=1, max_length=48)
+    steps: list[StepModel] = Field(default_factory=list, max_length=48)
     loop:  bool = Field(False)
+    servos: dict[str, int] = Field(default_factory=dict)
+    attach_cmds: list[str] = Field(default_factory=list, max_length=48)
 
     @field_validator("steps")
     @classmethod
-    def not_empty(cls, v):
-        if not v:
-            raise ValueError("steps 不能為空")
+    def steps_len_ok(cls, v):
         return v
 
 class ConnectRequest(BaseModel):
@@ -117,7 +136,16 @@ class WSManager:
 def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
     serial_mgr = SerialManager()
     ws_mgr     = WSManager()
-    app        = FastAPI(title="Servo Controller", version="1.0.0")
+    
+    # Define lifespan handler first
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # Startup
+        ws_mgr.set_loop(asyncio.get_running_loop())
+        yield
+        # Shutdown (if needed)
+    
+    app        = FastAPI(title="Servo Controller", version="1.0.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -164,10 +192,6 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
 
     serial_mgr.on_line(on_serial_line)
     serial_mgr.on_disconnect(on_disconnect)
-
-    @app.on_event("startup")
-    async def _startup():
-        ws_mgr.set_loop(asyncio.get_running_loop())
 
     # ── WebSocket /ws ─────────────────────
     @app.websocket("/ws")
@@ -277,7 +301,92 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
     async def api_run(req: RunRequest):
         if not serial_mgr.is_connected:
             raise HTTPException(400, "尚未連線到 Arduino")
+
+        if not req.steps and not req.attach_cmds:
+            raise HTTPException(400, "steps 與 attach_cmds 不能同時為空")
+
+        # Optional pre-attach commands, useful for two-phase execution.
+        for raw in req.attach_cmds:
+            if not isinstance(raw, str):
+                continue
+            cmd = raw.strip()
+            parts = cmd.split()
+            if len(parts) != 3 or parts[0].upper() != "ATTACH":
+                continue
+            try:
+                sid = int(parts[1])
+                pin = int(parts[2])
+            except ValueError:
+                continue
+            if not (1 <= sid <= MAX_SERVOS and 2 <= pin <= 13):
+                continue
+            if serial_mgr.attached.get(sid) == pin:
+                continue
+            ok_attach_cmd = await asyncio.get_event_loop().run_in_executor(
+                None, lambda sid=sid, pin=pin: serial_mgr.attach_servo_and_wait(sid, pin)
+            )
+            if not ok_attach_cmd:
+                raise HTTPException(500, f"attach_cmd 執行失敗 sid={sid} pin={pin}")
+
         steps = [s.model_dump() for s in req.steps]
+
+        # Auto-attach servos used in this script before RUN.
+        used_sids = sorted({int(s.get("servo_id", 1)) for s in steps})
+
+        req_pin_map: dict[int, int] = {}
+        for k, v in (req.servos or {}).items():
+            try:
+                sid = int(k)
+                pin = int(v)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= sid <= MAX_SERVOS and 2 <= pin <= 13:
+                req_pin_map[sid] = pin
+
+        # Priority: request mapping > currently attached mapping
+        effective_pin_map: dict[int, int] = dict(serial_mgr.attached)
+        effective_pin_map.update(req_pin_map)
+
+        missing_sids: list[int] = []
+        auto_attached_count = 0
+        for sid in used_sids:
+            if sid in serial_mgr.attached:
+                continue
+
+            pin = effective_pin_map.get(sid)
+            if pin is None:
+                missing_sids.append(sid)
+                continue
+
+            ok_attach = await asyncio.get_event_loop().run_in_executor(
+                None, lambda sid=sid, pin=pin: serial_mgr.attach_servo_and_wait(sid, pin)
+            )
+            if not ok_attach:
+                raise HTTPException(500, f"自動 ATTACH 失敗 sid={sid} pin={pin}")
+            auto_attached_count += 1
+
+        if missing_sids:
+            raise HTTPException(
+                400,
+                "缺少 servo mapping，請在 JSON 提供 servos 或先手動 ATTACH: "
+                + ",".join(str(sid) for sid in missing_sids),
+            )
+
+        ws_mgr.broadcast_sync({
+            "type": "attached",
+            "attached": serial_mgr.attached,
+        })
+
+        if not steps:
+            return {
+                "ok": True,
+                "attach_only": True,
+                "attached": serial_mgr.attached,
+            }
+
+        # attach_servo_and_wait already blocks until Arduino confirms OK ATTACH,
+        # so no additional settle delay is needed.
+
         ok = await asyncio.get_event_loop().run_in_executor(
             None, lambda: serial_mgr.send_script(steps, req.loop)
         )
@@ -332,7 +441,7 @@ def _status(mgr: SerialManager) -> dict:
     }
 
 
-def run_server(host: str = "127.0.0.1", port: int = 7070):
+def run_server(host: str = HOST, port: int = PORT):
     app, _, _ = create_app()
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
@@ -340,4 +449,6 @@ def run_server(host: str = "127.0.0.1", port: int = 7070):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(message)s")
-    run_server()
+    detected_port = SerialManager.auto_detect()
+    print_banner(detected_port, HOST, PORT)
+    run_server(HOST, PORT)
