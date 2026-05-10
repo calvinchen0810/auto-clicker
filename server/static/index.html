@@ -1,200 +1,176 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Servo Controller</title>
 <style>
-/* ── Reset & Variables ──────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:      #0a0a0c;
-  --panel:   #111115;
-  --card:    #18181e;
-  --input:   #1e1e26;
-  --hover:   #222230;
-  --border:  #2a2a38;
-  --brite:   #3a3a50;
-  --green:   #22c55e;
-  --green2:  #16a34a;
-  --amber:   #f59e0b;
-  --red:     #ef4444;
-  --blue:    #38bdf8;
-  --fg:      #e2e8f0;
-  --fg2:     #94a3b8;
-  --fg3:     #475569;
-  --mono:    'Consolas','Courier New',monospace;
-  --ui:      'Segoe UI',system-ui,sans-serif;
-  --r:       4px;
+  --bg:#0a0a0c;--panel:#111115;--card:#18181e;--input:#1e1e26;--hover:#222230;
+  --border:#2a2a38;--brite:#3a3a50;
+  --green:#22c55e;--green2:#16a34a;--amber:#f59e0b;--red:#ef4444;--blue:#38bdf8;
+  --fg:#e2e8f0;--fg2:#94a3b8;--fg3:#475569;
+  --mono:'Consolas','Courier New',monospace;--ui:'Segoe UI',system-ui,sans-serif;--r:4px;
 }
 html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:13px;overflow:hidden}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--panel)}
 ::-webkit-scrollbar-thumb{background:var(--brite);border-radius:3px}
 
-/* ── Buttons ────────────────────────────── */
 button{font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:.4px;
   border:1px solid var(--border);border-radius:var(--r);background:var(--card);
-  color:var(--fg);padding:5px 12px;cursor:pointer;transition:all .12s;text-transform:uppercase}
+  color:var(--fg);padding:4px 10px;cursor:pointer;transition:all .12s;text-transform:uppercase}
 button:hover:not(:disabled){background:var(--hover);border-color:var(--brite);color:#fff}
 button:active:not(:disabled){transform:scale(.97)}
 button:disabled{opacity:.3;cursor:not-allowed}
 .btn-green{background:rgba(34,197,94,.12);border-color:var(--green2);color:var(--green)}
-.btn-green:hover:not(:disabled){background:rgba(34,197,94,.22);box-shadow:0 0 8px rgba(34,197,94,.3)}
+.btn-green:hover:not(:disabled){background:rgba(34,197,94,.22);box-shadow:0 0 8px rgba(34,197,94,.25)}
 .btn-amber{background:rgba(245,158,11,.1);border-color:#92400e;color:var(--amber)}
 .btn-amber:hover:not(:disabled){background:rgba(245,158,11,.2)}
 .btn-red{background:rgba(239,68,68,.1);border-color:#7f1d1d;color:var(--red)}
-.btn-red:hover:not(:disabled){background:rgba(239,68,68,.2);box-shadow:0 0 8px rgba(239,68,68,.3)}
+.btn-red:hover:not(:disabled){background:rgba(239,68,68,.2);box-shadow:0 0 8px rgba(239,68,68,.25)}
 .btn-blue{background:rgba(56,189,248,.08);border-color:#075985;color:var(--blue)}
 .btn-blue:hover:not(:disabled){background:rgba(56,189,248,.15)}
+.btn-sm{padding:3px 8px;font-size:11px}
 
-/* ── Inputs ─────────────────────────────── */
-input,select{font-family:var(--mono);font-size:12px;background:var(--input);
-  color:var(--fg);border:1px solid var(--border);border-radius:var(--r);
-  padding:4px 7px;outline:none;transition:border-color .12s}
+input,select{font-family:var(--mono);font-size:12px;background:var(--input);color:var(--fg);
+  border:1px solid var(--border);border-radius:var(--r);padding:3px 6px;outline:none;transition:border-color .12s}
 input:focus,select:focus{border-color:var(--green2)}
-input[type=range]{appearance:none;-webkit-appearance:none;width:100%;height:4px;
-  background:var(--input);border:1px solid var(--border);border-radius:999px;padding:0}
-input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;
-  width:12px;height:12px;border-radius:50%;background:var(--green2);border:1px solid var(--green)}
-input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;
-  background:var(--green2);border:1px solid var(--green)}
-input[type=range]::-moz-range-track{height:4px;background:var(--input);border:1px solid var(--border);border-radius:999px}
-input[type=checkbox]{width:14px;height:14px;accent-color:var(--amber);cursor:pointer}
-select{cursor:pointer}
+input[type=number]{text-align:right}
+input[type=checkbox]{width:13px;height:13px;accent-color:var(--amber);cursor:pointer}
 
-/* ── Panels ─────────────────────────────── */
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .ph{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
-  color:var(--fg2);background:var(--card);padding:7px 12px;border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:8px}
+  color:var(--fg2);background:var(--card);padding:6px 10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:6px}
 .ph::before{content:'//';color:var(--fg3)}
 .pb{padding:10px 12px}
 
-/* ── Layout ──────────────────────────── */
+/* Layout */
 #app{display:flex;flex-direction:column;height:100vh}
-#topbar{display:flex;align-items:center;gap:10px;padding:0 14px;height:42px;
+#topbar{display:flex;align-items:center;gap:8px;padding:0 12px;height:40px;
   background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
-#main{display:grid;grid-template-columns:minmax(0,1fr) minmax(460px,50vw);grid-template-rows:auto 1fr;
-  gap:8px;padding:8px;flex:1;overflow:hidden;min-height:0}
-#left-top{grid-column:1;grid-row:1}
-#script-panel{grid-column:1;grid-row:2;overflow:hidden;display:flex;flex-direction:column}
-#right-col{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+#main{display:grid;grid-template-columns:240px 1fr 1fr;grid-template-rows:auto 1fr;
+  gap:7px;padding:7px;flex:1;overflow:hidden;min-height:0}
 
-/* ── Topbar ──────────────────────────── */
+/* Topbar */
 #logo{font-family:var(--mono);font-size:13px;font-weight:bold;color:var(--green);
   letter-spacing:2px;white-space:nowrap}
-#dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex-shrink:0;
+#dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;
   box-shadow:0 0 5px var(--red);transition:all .3s}
 #dot.idle{background:var(--green);box-shadow:0 0 6px var(--green)}
 #dot.running{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1s infinite}
 #state-text{font-family:var(--mono);font-size:11px;letter-spacing:1px}
 #port-badge{font-family:var(--mono);font-size:10px;color:var(--fg2);
-  background:var(--input);border:1px solid var(--border);border-radius:2px;padding:1px 7px}
-#port-select{width:200px;font-size:11px}
-.tb-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+  background:var(--input);border:1px solid var(--border);border-radius:2px;padding:1px 6px}
+#port-select{width:190px;font-size:11px}
+.tb-sep{width:1px;height:16px;background:var(--border);flex-shrink:0}
 .spacer{flex:1}
 #http-label{font-family:var(--mono);font-size:9px;color:var(--fg3);letter-spacing:1px}
 
-/* ── Quick CMD ───────────────────────── */
-#quick-btns{display:flex;gap:8px;padding:10px 12px}
+/* Left col: Servo Manager */
+#left-col{grid-column:1;grid-row:1/3;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+#servo-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#servo-list{flex:1;overflow-y:auto;padding:4px 0}
 
-/* ── Single Step ─────────────────────── */
-#step-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;
-  gap:5px 10px;padding:10px 12px 6px}
-#step-grid label{color:var(--fg2);font-size:11px;align-self:center}
-.range-field{min-width:0}
-.pop-range{position:relative;display:block;min-width:0}
-.pop-trigger{list-style:none;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--fg2);
-  background:var(--input);border:1px solid var(--border);border-radius:var(--r);padding:4px 8px;text-align:right}
-.pop-trigger::-webkit-details-marker{display:none}
-.pop-panel{position:absolute;left:0;top:calc(100% + 6px);z-index:20;display:none;
-  min-width:220px;background:var(--card);border:1px solid var(--brite);border-radius:var(--r);padding:8px}
-.pop-range[open] .pop-panel{display:block}
-.range-val{font-family:var(--mono);font-size:11px;color:var(--fg2)}
-.home-row{display:flex;align-items:center;gap:8px;padding:4px 12px 8px}
+.servo-row{display:flex;align-items:center;gap:5px;padding:4px 10px;
+  border-bottom:1px solid var(--border);transition:background .1s}
+.servo-row:hover{background:var(--hover)}
+.srv-id{font-family:var(--mono);font-size:11px;color:var(--fg2);width:22px;flex-shrink:0}
+.srv-dot{font-size:11px;color:var(--fg3);flex-shrink:0;transition:color .2s}
+.srv-dot.on{color:var(--green)}
+.srv-pin-label{font-family:var(--mono);font-size:10px;color:var(--fg3);width:30px;flex-shrink:0}
+.srv-pin-label.on{color:var(--green)}
+.srv-pin{width:46px;font-size:11px;padding:2px 4px}
+.srv-btns{display:flex;gap:3px;margin-left:auto;flex-shrink:0}
+
+#servo-bulk{display:flex;gap:5px;padding:7px 10px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* Mid col */
+#mid-col{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+#step-panel{flex-shrink:0}
+#script-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* Step form */
+#step-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;padding:8px 10px 4px}
+#step-grid label{color:var(--fg2);font-size:11px;align-self:center;white-space:nowrap}
+#step-grid input{width:72px}
+.sid-input{color:var(--amber) !important;font-weight:bold}
+.home-row{display:flex;align-items:center;gap:7px;padding:4px 10px 6px}
 .home-row label{color:var(--fg2);font-size:11px}
-.home-btn{padding:4px 10px;font-size:11px}
-.home-btn.active-green{background:rgba(34,197,94,.18);border-color:var(--green2);color:var(--green)}
-.home-btn.active-amber{background:rgba(245,158,11,.18);border-color:#92400e;color:var(--amber)}
-#canvas-wrap{display:flex;align-items:center;gap:12px;padding:4px 12px 10px}
-#servo-canvas{display:block}
+.hbtn{padding:3px 9px;font-size:11px}
+.hbtn.active-green{background:rgba(34,197,94,.18);border-color:var(--green2);color:var(--green)}
+.hbtn.active-amber{background:rgba(245,158,11,.18);border-color:#92400e;color:var(--amber)}
+#canvas-area{display:flex;align-items:center;gap:10px;padding:2px 10px 8px}
 #home-desc{font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--green)}
-#step-btns{display:flex;gap:8px;padding:0 12px 10px}
+#step-btns{display:flex;gap:6px;padding:0 10px 8px}
 
-/* ── Script Panel ────────────────────── */
-#script-toolbar{display:flex;align-items:center;gap:6px;padding:8px 12px;
+/* Script */
+#script-tb{display:flex;align-items:center;gap:5px;padding:6px 10px;
   border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-#script-toolbar label{color:var(--fg2);font-size:11px;display:flex;align-items:center;gap:5px}
-.tb-sep2{width:1px;height:16px;background:var(--border)}
+#script-tb label{color:var(--fg2);font-size:11px;display:flex;align-items:center;gap:4px}
+.tb-sep2{width:1px;height:14px;background:var(--border)}
 #table-wrap{flex:1;overflow-y:auto;overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
 thead th{position:sticky;top:0;z-index:1;background:var(--card);color:var(--fg2);
-  font-size:9px;letter-spacing:1px;padding:6px 8px;text-align:left;
+  font-size:9px;letter-spacing:1px;padding:5px 6px;text-align:left;
   border-bottom:1px solid var(--brite);font-weight:normal}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:grab}
 tbody tr:hover{background:var(--hover)}
 tbody tr.drag-over{border-top:2px solid var(--green2)}
-tbody tr.dragging{opacity:.35}
-td{padding:2px 4px;vertical-align:middle}
-.drag-col{color:var(--fg3);text-align:center;width:20px;font-size:14px}
-.drag-handle{display:inline-block;cursor:grab;user-select:none}
-.step-range-wrap{min-width:150px}
-.step-range-wrap .pop-trigger{font-size:10px;padding:3px 6px}
-.step-range-wrap .pop-panel{min-width:170px;padding:6px}
-.step-range-wrap input[type=range]{height:3px}
-.step-val{font-family:var(--mono);font-size:10px;color:var(--fg2);min-width:34px;text-align:right}
-.home-tgl{width:34px;height:22px;border-radius:11px;border:1px solid var(--border);background:rgba(245,158,11,.18);color:var(--amber);font-size:13px;line-height:1;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
-.home-tgl.on{background:rgba(34,197,94,.18);border-color:var(--green2);color:var(--green)}
-.del-btn{background:none;border:none;color:var(--fg3);padding:2px 6px;font-size:13px;cursor:pointer}
+tbody tr.dragging{opacity:.3}
+td{padding:2px 3px;vertical-align:middle}
+.drag-col{color:var(--fg3);text-align:center;width:18px;font-size:13px;cursor:grab}
+td input[type=number]{width:62px;padding:2px 4px}
+td input.sid-col{color:var(--amber)}
+.home-sel{width:44px;font-size:11px;padding:2px 3px;text-align:center}
+.del-btn{background:none;border:none;color:var(--fg3);padding:2px 5px;font-size:12px;cursor:pointer}
 .del-btn:hover{color:var(--red)}
-#add-row{padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0}
+#add-row{padding:7px 10px;border-top:1px solid var(--border);flex-shrink:0}
+#empty-hint{padding:20px;text-align:center;color:var(--fg3);font-family:var(--mono);font-size:11px}
 
-/* ── Right col ───────────────────────── */
+/* Right col */
+#right-col{grid-column:3;grid-row:1/3;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+
 /* Progress */
-#prog-nums{display:flex;align-items:baseline;gap:4px;padding:10px 12px 6px}
-#prog-cur{font-family:var(--mono);font-size:28px;color:var(--green);line-height:1}
-#prog-sep{color:var(--fg3);font-size:16px}
-#prog-tot{font-family:var(--mono);font-size:18px;color:var(--fg2)}
+#prog-nums{display:flex;align-items:baseline;gap:4px;padding:8px 10px 4px}
+#prog-cur{font-family:var(--mono);font-size:26px;color:var(--green);line-height:1}
+#prog-sep{color:var(--fg3);font-size:15px}
+#prog-tot{font-family:var(--mono);font-size:17px;color:var(--fg2)}
 #loop-badge{font-family:var(--mono);font-size:9px;color:var(--amber);
   border:1px solid var(--amber);padding:1px 5px;border-radius:2px;margin-left:4px;
   animation:pulse 1.5s infinite;display:none}
 #prog-pct{font-family:var(--mono);font-size:11px;color:var(--green2);margin-left:auto}
-#prog-track{height:3px;background:var(--input);margin:0 12px 8px;border-radius:2px;overflow:hidden}
+#prog-track{height:3px;background:var(--input);margin:0 10px 6px;border-radius:2px;overflow:hidden}
 #prog-fill{height:100%;background:linear-gradient(90deg,var(--green2),var(--green));
-  width:0%;transition:width .3s;box-shadow:0 0 6px var(--green)}
-#last-msg{padding:0 12px 10px;font-family:var(--mono);font-size:10px;color:var(--fg2);
-  min-height:18px}
-/* Serial monitor */
+  width:0%;transition:width .3s;box-shadow:0 0 5px var(--green)}
+#last-msg{padding:0 10px 8px;font-family:var(--mono);font-size:10px;color:var(--fg2);min-height:16px}
+
+/* Controls */
+#ctrl-btns{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px 10px}
+#btn-stop{grid-column:1/-1;padding:7px}
+#btn-run,#btn-loop{padding:7px}
+
+/* Quick */
+#quick-row{display:flex;gap:6px;padding:8px 10px}
+
+/* Serial Monitor */
 #serial-panel{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 #serial-header{display:flex;align-items:center}
 #serial-header .ph{flex:1}
-#filter-input{width:70px;font-size:10px;padding:2px 5px;margin-right:4px}
-#auto-cb-wrap{display:flex;align-items:center;gap:4px;padding:0 6px;
-  font-size:10px;color:var(--fg2);cursor:pointer}
-#serial-out{flex:1;overflow-y:auto;padding:6px 10px;font-family:var(--mono);
-  font-size:11px;line-height:1.65}
-.s-line{display:flex;gap:8px;animation:fadein .1s}
+#filter-input{width:65px;font-size:10px;padding:2px 4px;margin-right:4px}
+#auto-cb-wrap{display:flex;align-items:center;gap:3px;padding:0 5px;font-size:10px;color:var(--fg2);cursor:pointer}
+#serial-out{flex:1;overflow-y:auto;padding:5px 8px;font-family:var(--mono);font-size:11px;line-height:1.65}
+.s-line{display:flex;gap:7px;animation:fadein .1s}
 .s-ts{color:var(--fg3);flex-shrink:0;font-size:10px;line-height:1.8}
-.c-ok{color:var(--green)}
-.c-run{color:var(--amber)}
-.c-err{color:var(--red)}
-.c-send{color:var(--blue)}
-.c-dim{color:var(--fg2)}
-/* Manual cmd */
-#manual-row{display:flex;align-items:center;gap:6px;padding:6px 10px;
+.c-ok{color:var(--green)}.c-run{color:var(--amber)}.c-err{color:var(--red)}
+.c-send{color:var(--blue)}.c-dim{color:var(--fg2)}.c-att{color:#a3e635}
+#manual-row{display:flex;align-items:center;gap:5px;padding:5px 8px;
   border-top:1px solid var(--border);flex-shrink:0}
 #manual-prefix{font-family:var(--mono);color:var(--blue);font-size:12px}
-#manual-input{flex:1;font-size:11px;background:var(--input);border:1px solid var(--border)}
+#manual-input{flex:1;font-size:11px}
 
-@media (max-width: 1100px){
-  #main{grid-template-columns:1fr;grid-template-rows:auto auto 1fr}
-  #left-top{grid-column:1;grid-row:1}
-  #right-col{grid-column:1;grid-row:2}
-  #script-panel{grid-column:1;grid-row:3}
-}
-
-/* ── Animations ──────────────────────── */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 </style>
@@ -202,407 +178,439 @@ td{padding:2px 4px;vertical-align:middle}
 <body>
 <div id="app">
 
-  <!-- Topbar -->
-  <div id="topbar">
-    <div id="logo">[SERVO CTRL]</div>
-    <div class="tb-sep"></div>
-    <div id="dot"></div>
-    <span id="state-text" style="color:var(--fg2)">DISCONNECTED</span>
-    <span id="port-badge" style="display:none"></span>
-    <div class="tb-sep"></div>
-    <select id="port-select"><option value="">— Auto Detect —</option></select>
-    <button id="btn-refresh" title="Refresh Port List">⟳</button>
-    <button id="btn-conn" class="btn-green">CONNECT</button>
-    <div class="spacer"></div>
-    <span id="http-label">HTTP :7070</span>
-  </div>
+<!-- Topbar -->
+<div id="topbar">
+  <div id="logo">[SERVO CTRL]</div>
+  <div class="tb-sep"></div>
+  <div id="dot"></div>
+  <span id="state-text" style="color:var(--fg2)">DISCONNECTED</span>
+  <span id="port-badge" style="display:none"></span>
+  <div class="tb-sep"></div>
+  <select id="port-select"><option value="">— 自動偵測 —</option></select>
+  <button id="btn-refresh" title="刷新">⟳</button>
+  <button id="btn-conn" class="btn-green">CONNECT</button>
+  <div class="spacer"></div>
+  <span id="http-label">HTTP :7070</span>
+</div>
 
-  <!-- Main -->
-  <div id="main">
+<!-- Main -->
+<div id="main">
 
-    <!-- Left top: Quick + Single Step -->
-    <div id="left-top">
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:8px">
-
-        <!-- Quick -->
-        <div class="panel" style="align-self:start">
-          <div class="ph">Quick Commands</div>
-          <div id="quick-btns">
-            <button class="btn-blue" onclick="sendRaw('PING')">PING</button>
-            <button class="btn-amber" onclick="sendRaw('STATUS')">STATUS</button>
-            <button class="btn-red" onclick="apiStop()">STOP</button>
-          </div>
-        </div>
-
-        <!-- Single Step -->
-        <div class="panel">
-          <div class="ph">Single Step</div>
-          <div id="step-grid">
-            <label>Delay ms</label>
-            <div class="range-field">
-              <details class="pop-range">
-                <summary class="pop-trigger"><span class="range-val" id="s-delay-val">1000</span></summary>
-                <div class="pop-panel">
-                  <input type="range" id="s-delay" value="1000" min="0" max="30000" step="500"
-                         oninput="syncRangeValue('s-delay','s-delay-val')">
-                </div>
-              </details>
-            </div>
-            <label>Angle °</label>
-            <div class="range-field">
-              <details class="pop-range">
-                <summary class="pop-trigger"><span class="range-val" id="s-angle-val">90</span></summary>
-                <div class="pop-panel">
-                  <input type="range" id="s-angle" value="90" min="0" max="180"
-                         oninput="syncRangeValue('s-angle','s-angle-val'); updateCanvas()">
-                </div>
-              </details>
-            </div>
-            <label>Speed</label>
-            <div class="range-field">
-              <details class="pop-range">
-                <summary class="pop-trigger"><span class="range-val" id="s-speed-val">60</span></summary>
-                <div class="pop-panel">
-                  <input type="range" id="s-speed" value="60" min="1" max="100"
-                         oninput="syncRangeValue('s-speed','s-speed-val')">
-                </div>
-              </details>
-            </div>
-            <label>Hold ms</label>
-            <div class="range-field">
-              <details class="pop-range">
-                <summary class="pop-trigger"><span class="range-val" id="s-dur-val">1000</span></summary>
-                <div class="pop-panel">
-                  <input type="range" id="s-dur" value="1000" min="0" max="30000" step="500"
-                         oninput="syncRangeValue('s-dur','s-dur-val')">
-                </div>
-              </details>
-            </div>
-          </div>
-          <div class="home-row">
-            <label>Home</label>
-            <button class="home-btn active-green" id="hbtn1" onclick="setHome(1)">1 Return 0°</button>
-            <button class="home-btn" id="hbtn0" onclick="setHome(0)">0 Stay</button>
-            <div id="canvas-wrap" style="margin-left:8px">
-              <canvas id="servo-canvas" width="100" height="96"></canvas>
-              <div id="home-desc">home=1<br>After done<br>return 0°</div>
-            </div>
-          </div>
-          <div id="step-btns">
-            <button class="btn-green" onclick="sendStep()">▶ Send Step</button>
-            <button onclick="previewStep()">Preview</button>
-            <button class="btn-blue" onclick="addCurrentStepToScript()">+ Add to Script</button>
-          </div>
-        </div>
+  <!-- Left: Servo Manager -->
+  <div id="left-col">
+    <div id="servo-panel" class="panel">
+      <div class="ph">Servo 管理</div>
+      <div id="servo-list"></div>
+      <div id="servo-bulk">
+        <button class="btn-green btn-sm" onclick="attachAll()" style="flex:1">全部 ATTACH</button>
+        <button class="btn-red btn-sm"   onclick="detachAll()" style="flex:1">全部 DETACH</button>
       </div>
     </div>
 
-    <!-- Left bottom: Script editor -->
+    <!-- Quick commands -->
+    <div class="panel" style="flex-shrink:0">
+      <div class="ph">快速指令</div>
+      <div id="quick-row">
+        <button class="btn-blue  btn-sm" onclick="rawCmd('PING')">PING</button>
+        <button class="btn-amber btn-sm" onclick="rawCmd('STATUS')">STATUS</button>
+        <button class="btn-red   btn-sm" onclick="apiStop()">STOP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mid: Step + Script -->
+  <div id="mid-col">
+
+    <!-- Single Step -->
+    <div id="step-panel" class="panel">
+      <div class="ph">單步測試</div>
+      <div id="step-grid">
+        <label>延遲 ms</label>  <input type="number" id="s-delay" value="0"   min="0" max="65535">
+        <label>Servo ID</label> <input type="number" id="s-sid"   value="1"   min="1" max="6" class="sid-input">
+        <label>角度 °</label>   <input type="number" id="s-angle" value="90"  min="0" max="180" oninput="drawCanvas()">
+        <label>速度</label>     <input type="number" id="s-speed" value="60"  min="1" max="100">
+        <label>停留 ms</label>  <input type="number" id="s-dur"   value="300" min="0" max="65535">
+      </div>
+      <div class="home-row">
+        <label>歸位</label>
+        <button class="hbtn active-green" id="hbtn1" onclick="setHome(1)">1 回 0°</button>
+        <button class="hbtn" id="hbtn0" onclick="setHome(0)">0 停住</button>
+        <div id="canvas-area" style="margin-left:8px">
+          <canvas id="servo-canvas" width="96" height="76"></canvas>
+          <div id="home-desc">home=1<br>執行完<br>回到 0°</div>
+        </div>
+      </div>
+      <div id="step-btns">
+        <button class="btn-green" onclick="sendStep()">▶ 送出單步</button>
+        <button onclick="previewStep()">預覽指令</button>
+      </div>
+    </div>
+
+    <!-- Script Editor -->
     <div id="script-panel" class="panel">
-      <div class="ph" style="flex-shrink:0">Script Editor
+      <div class="ph">腳本編輯器
         <span id="step-count" style="font-size:9px;color:var(--green2);
           background:rgba(34,197,94,.08);border:1px solid var(--border);
-          padding:1px 6px;border-radius:2px;margin-left:4px">0 STEPS</span>
+          padding:1px 5px;border-radius:2px;margin-left:4px">0 STEPS</span>
       </div>
-      <div id="script-toolbar">
-        <button onclick="importJSON()">Import JSON</button>
-        <button onclick="exportJSON()">Export JSON</button>
+      <div id="script-tb">
+        <button class="btn-sm" onclick="loadExample()">載入範例</button>
+        <button class="btn-sm" onclick="importJSON()">匯入 JSON</button>
+        <button class="btn-sm" onclick="exportJSON()">匯出 JSON</button>
         <div class="tb-sep2"></div>
-        <label><input type="checkbox" id="loop-cb"> Loop</label>
+        <label><input type="checkbox" id="loop-cb"> 循環</label>
         <div class="spacer"></div>
-        <button class="btn-green" id="btn-run-script" onclick="runScript(false)">▶ RUN</button>
-        <button class="btn-amber" id="btn-loop-script" onclick="runScript(true)">↺ LOOP RUN</button>
-        <button class="btn-red" onclick="apiStop()">■ STOP</button>
+        <button class="btn-green btn-sm" id="btn-run-script" onclick="runScript(false)">▶ 執行</button>
+        <button class="btn-amber btn-sm" id="btn-loop-script" onclick="runScript(true)">↺ 循環執行</button>
+        <button class="btn-red   btn-sm" onclick="apiStop()">■ STOP</button>
       </div>
       <div id="table-wrap">
         <table>
-          <thead>
-            <tr>
-              <th style="width:22px"></th>
-              <th>DELAY ms</th>
-              <th>ANGLE °</th>
-              <th>SPEED</th>
-              <th>HOLD ms</th>
-              <th>HOME</th>
-              <th style="width:30px"></th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th style="width:18px"></th>
+            <th>DELAY ms</th><th>SID</th><th>ANGLE °</th>
+            <th>SPEED</th><th>HOLD ms</th><th>HOME</th>
+            <th style="width:24px"></th>
+          </tr></thead>
           <tbody id="steps-tbody"></tbody>
         </table>
-        <div id="empty-hint" style="padding:24px;text-align:center;
-          color:var(--fg3);font-family:var(--mono);font-size:11px;letter-spacing:1px">
-          // NO STEPS — CLICK ADD TO BEGIN
-        </div>
+        <div id="empty-hint">// NO STEPS — CLICK ADD TO BEGIN</div>
       </div>
       <div id="add-row">
-        <button class="btn-green" onclick="addStep()">＋ ADD STEP</button>
+        <button class="btn-green btn-sm" onclick="addStep()">＋ ADD STEP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Progress + Controls + Serial -->
+  <div id="right-col">
+
+    <!-- Progress -->
+    <div class="panel" style="flex-shrink:0">
+      <div class="ph">執行進度</div>
+      <div id="prog-nums">
+        <span id="prog-cur">—</span><span id="prog-sep">/</span>
+        <span id="prog-tot">—</span>
+        <span id="loop-badge">LOOP</span>
+        <span id="prog-pct"></span>
+      </div>
+      <div id="prog-track"><div id="prog-fill"></div></div>
+      <div id="last-msg"></div>
+    </div>
+
+    <!-- Controls -->
+    <div class="panel" style="flex-shrink:0">
+      <div class="ph">執行控制</div>
+      <div id="ctrl-btns">
+        <button class="btn-green" id="btn-run"  onclick="runScript(false)">▶ RUN ONCE</button>
+        <button class="btn-amber" id="btn-loop" onclick="runScript(true)">↺ LOOP</button>
+        <button class="btn-red"   id="btn-stop" onclick="apiStop()">■ STOP</button>
       </div>
     </div>
 
-    <!-- Right col -->
-    <div id="right-col">
-
-      <!-- Progress -->
-      <div class="panel">
-        <div class="ph">Progress</div>
-        <div id="prog-nums">
-          <span id="prog-cur">—</span>
-          <span id="prog-sep">/</span>
-          <span id="prog-tot">—</span>
-          <span id="loop-badge">LOOP</span>
-          <span id="prog-pct"></span>
-        </div>
-        <div id="prog-track"><div id="prog-fill"></div></div>
-        <div id="last-msg"></div>
+    <!-- Serial Monitor -->
+    <div id="serial-panel" class="panel">
+      <div id="serial-header">
+        <div class="ph" style="flex:1">Serial Monitor</div>
+        <input id="filter-input" placeholder="filter…" oninput="renderLog()">
+        <label id="auto-cb-wrap"><input type="checkbox" id="auto-scroll" checked> AUTO</label>
       </div>
-
-      <!-- Serial Monitor -->
-      <div id="serial-panel" class="panel">
-        <div id="serial-header">
-          <div class="ph" style="flex:1">Serial Monitor</div>
-          <input id="filter-input" placeholder="filter…" oninput="renderLog()">
-          <label id="auto-cb-wrap">
-            <input type="checkbox" id="auto-scroll" checked> AUTO
-          </label>
-        </div>
-        <div id="serial-out"></div>
-        <div id="manual-row">
-          <span id="manual-prefix">>></span>
-          <input id="manual-input" placeholder="Enter command…"
-                 onkeydown="if(event.key==='Enter')manualSend()">
-          <button onclick="manualSend()">Send</button>
-        </div>
+      <div id="serial-out"></div>
+      <div id="manual-row">
+        <span id="manual-prefix">>></span>
+        <input id="manual-input" placeholder="手動輸入指令…"
+               onkeydown="if(event.key==='Enter')manualSend()">
+        <button class="btn-sm" onclick="manualSend()">送出</button>
       </div>
+    </div>
+  </div>
 
-    </div><!-- right-col -->
-  </div><!-- main -->
+</div><!-- main -->
 </div><!-- app -->
 
-<!-- Hidden file input for JSON import -->
-<input type="file" id="file-input" accept=".json" style="display:none"
-       onchange="handleImport(event)">
+<input type="file" id="file-input" accept=".json" style="display:none" onchange="handleImport(event)">
 
 <script>
 // ════════════════════════════════════════
-//  State
+//  Constants & State
 // ════════════════════════════════════════
-let steps     = [];
-let homeVal   = 1;
-let logLines  = [];
-let wsConn    = null;
-let stepIdCnt = 0;
-let dragSrc   = null;
+const MAX_SERVOS  = 6;
+const DEFAULT_PINS = [9,10,11,6,5,3];
 
-const connected = () => document.getElementById('dot').classList.contains('idle') ||
-                         document.getElementById('dot').classList.contains('running');
+let steps      = [];
+let homeVal    = 1;
+let logLines   = [];
+let wsConn     = null;
+let stepIdCnt  = 0;
+let dragSrc    = null;
+
+// Servo 狀態 {sid: pin} or {}
+let attachedMap = {};
+// 本地 pin 設定（UI 用）
+let pinSettings = [...DEFAULT_PINS];
+
+const isConn = () => ['idle','running'].includes(getState());
+let   _state = 'disconnected';
+const getState = () => _state;
 
 // ════════════════════════════════════════
 //  WebSocket
 // ════════════════════════════════════════
 function wsConnect() {
-  const url = `ws://${location.host}/ws`;
-  wsConn = new WebSocket(url);
-
-  wsConn.onopen = () => {
-    addLog('WS connected', 'c-dim');
+  wsConn = new WebSocket(`ws://${location.host}/ws`);
+  wsConn.onopen = () => addLog('WS 已連線', 'c-dim');
+  wsConn.onmessage = e => {
+    try { handleWS(JSON.parse(e.data)); } catch(_){}
   };
-
-  wsConn.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    handleWS(msg);
-  };
-
   wsConn.onclose = () => {
-    addLog('WS disconnected, retrying in 3s…', 'c-err');
+    addLog('WS 中斷，3秒後重連…','c-err');
     setTimeout(wsConnect, 3000);
   };
-
   wsConn.onerror = () => wsConn.close();
 }
 
 function handleWS(msg) {
-  if (msg.type === 'serial') {
-    addLog('← ' + msg.line, classifyLine(msg.line));
-  }
-  else if (msg.type === 'status') {
-    setUIState(msg.state, msg.port, msg.step, msg.total);
-  }
-  else if (msg.type === 'done') {
-    setUIState('idle', null, null, null);
-    setProgress(null, null);
-    setLastMsg('✔ Done');
-    document.getElementById('loop-badge').style.display = 'none';
-  }
-  else if (msg.type === 'error') {
-    addLog('ERR ' + msg.message, 'c-err');
-    setLastMsg('✘ ' + msg.message);
-  }
+  if (msg.type === 'serial')   addLog('← '+msg.line, classifyLine(msg.line));
+  else if (msg.type === 'status') applyStatus(msg);
+  else if (msg.type === 'attached') { attachedMap = intKeys(msg.attached||{}); renderServoList(); }
+  else if (msg.type === 'done')   { applyStatus({state:'idle'}); setProgress(null,null); setLastMsg('✔ 執行完畢'); document.getElementById('loop-badge').style.display='none'; }
+  else if (msg.type === 'error')  { addLog('ERR '+msg.message,'c-err'); setLastMsg('✘ '+msg.message); }
 }
 
-function classifyLine(line) {
-  if (['OK READY','OK DONE','OK PONG','OK IDLE','OK STOPPED'].includes(line)) return 'c-ok';
-  if (line.startsWith('OK RUNNING') || line.startsWith('OK LOOP'))            return 'c-run';
-  if (line.startsWith('ERR'))                                                  return 'c-err';
+function classifyLine(l) {
+  if (['OK READY','OK DONE','OK PONG','OK IDLE','OK STOPPED'].some(s=>l.startsWith(s))) return 'c-ok';
+  if (l.startsWith('OK RUNNING')||l.startsWith('OK LOOP')) return 'c-run';
+  if (l.startsWith('OK ATTACH')||l.startsWith('OK DETACH')) return 'c-att';
+  if (l.startsWith('ERR')) return 'c-err';
   return 'c-dim';
+}
+
+function intKeys(obj) {
+  const r={};
+  Object.entries(obj).forEach(([k,v])=>{ r[parseInt(k)]=v; });
+  return r;
 }
 
 // ════════════════════════════════════════
 //  UI State
 // ════════════════════════════════════════
-function setUIState(state, port, step, total) {
+function applyStatus(msg) {
+  _state = msg.state || 'disconnected';
   const dot   = document.getElementById('dot');
   const stTxt = document.getElementById('state-text');
   const badge = document.getElementById('port-badge');
-
   dot.className = '';
-  if (state === 'idle') {
-    dot.classList.add('idle');
-    stTxt.style.color = 'var(--green)';
-    stTxt.textContent = 'IDLE';
-    badge.style.display = port ? '' : 'none';
-    if (port) badge.textContent = port;
-    setProgress(null, null);
-  } else if (state === 'running') {
-    dot.classList.add('running');
-    stTxt.style.color = 'var(--amber)';
-    stTxt.textContent = 'RUNNING';
-    if (step !== null && total !== null) setProgress(step, total);
+  if (_state === 'idle') {
+    dot.classList.add('idle'); stTxt.style.color='var(--green)'; stTxt.textContent='IDLE';
+    if (msg.port) { badge.style.display=''; badge.textContent=msg.port; } else badge.style.display='none';
+  } else if (_state === 'running') {
+    dot.classList.add('running'); stTxt.style.color='var(--amber)'; stTxt.textContent='RUNNING';
+    if (msg.step!=null && msg.total!=null) setProgress(msg.step, msg.total);
   } else {
-    stTxt.style.color = 'var(--fg2)';
-    stTxt.textContent = 'DISCONNECTED';
-    badge.style.display = 'none';
+    stTxt.style.color='var(--fg2)'; stTxt.textContent='DISCONNECTED'; badge.style.display='none';
   }
+  if (msg.attached) { attachedMap = intKeys(msg.attached); renderServoList(); }
 
-  const isConn    = state !== 'disconnected';
-  const isRunning = state === 'running';
-  document.getElementById('btn-conn').textContent      = isConn ? 'DISCONNECT' : 'CONNECT';
-  document.getElementById('btn-conn').className        = isConn ? 'btn-red' : 'btn-green';
-  const btnRunScript  = document.getElementById('btn-run-script');
-  const btnLoopScript = document.getElementById('btn-loop-script');
-  if (btnRunScript)  btnRunScript.disabled  = !isConn || isRunning;
-  if (btnLoopScript) btnLoopScript.disabled = !isConn || isRunning;
+  const conn=isConn(), run=_state==='running';
+  document.getElementById('btn-conn').textContent      = conn ? 'DISCONNECT':'CONNECT';
+  document.getElementById('btn-conn').className        = conn ? 'btn-red':'btn-green';
+  document.getElementById('btn-run').disabled          = !conn||run;
+  document.getElementById('btn-loop').disabled         = !conn||run;
+  document.getElementById('btn-run-script').disabled   = !conn||run;
+  document.getElementById('btn-loop-script').disabled  = !conn||run;
+  document.getElementById('btn-stop').disabled         = !conn||!run;
+  renderServoList();
 }
 
 function setProgress(cur, tot) {
-  const pCur  = document.getElementById('prog-cur');
-  const pTot  = document.getElementById('prog-tot');
-  const pFill = document.getElementById('prog-fill');
-  const pPct  = document.getElementById('prog-pct');
-  if (cur === null) {
-    pCur.textContent  = '—';
-    pTot.textContent  = '—';
-    pFill.style.width = '0%';
-    pPct.textContent  = '';
-  } else {
-    pCur.textContent  = cur;
-    pTot.textContent  = tot;
-    const pct = tot > 0 ? Math.round(cur / tot * 100) : 0;
-    pFill.style.width = pct + '%';
-    pPct.textContent  = pct + '%';
+  document.getElementById('prog-cur').textContent = cur!=null ? cur : '—';
+  document.getElementById('prog-tot').textContent = tot!=null ? tot : '—';
+  const pct = (cur!=null&&tot>0) ? Math.round(cur/tot*100) : 0;
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent  = cur!=null ? pct+'%' : '';
+}
+function setLastMsg(m) { document.getElementById('last-msg').textContent = m; }
+
+// ════════════════════════════════════════
+//  Servo Manager
+// ════════════════════════════════════════
+function renderServoList() {
+  const list = document.getElementById('servo-list');
+  list.innerHTML = '';
+  for (let i=0; i<MAX_SERVOS; i++) {
+    const sid  = i+1;
+    const isAtt= attachedMap[sid] != null;
+    const pin  = isAtt ? attachedMap[sid] : pinSettings[i];
+
+    const row  = document.createElement('div');
+    row.className = 'servo-row';
+    row.innerHTML = `
+      <span class="srv-id">S${sid}</span>
+      <span class="srv-dot ${isAtt?'on':''}">●</span>
+      <span class="srv-pin-label ${isAtt?'on':''}">D${pin}</span>
+      ${isAtt
+        ? `<span style="font-family:var(--mono);font-size:10px;color:var(--green);flex:1">已連接</span>`
+        : `<input type="number" class="srv-pin" value="${pin}" min="2" max="13"
+             oninput="pinSettings[${i}]=parseInt(this.value)||${DEFAULT_PINS[i]}"
+             onchange="pinSettings[${i}]=parseInt(this.value)||${DEFAULT_PINS[i]}">`
+      }
+      <div class="srv-btns">
+        ${!isAtt
+          ? `<button class="btn-green btn-sm" onclick="attachServo(${sid},${i})" ${isConn()?'':'disabled'}>ATTACH</button>`
+          : `<button class="btn-red btn-sm"   onclick="detachServo(${sid})"      ${isConn()?'':'disabled'}>DETACH</button>`
+        }
+      </div>`;
+    list.appendChild(row);
   }
 }
 
-function setLastMsg(msg) {
-  document.getElementById('last-msg').textContent = msg;
+async function attachServo(sid, idx) {
+  const pin = pinSettings[idx];
+  const res = await fetch('/api/attach', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({sid, pin})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    attachedMap = intKeys(data.attached||{});
+    renderServoList();
+    addLog(`→ ATTACH ${sid} ${pin}`, 'c-send');
+  } else {
+    addLog('✘ ATTACH 失敗: '+(data.detail||''), 'c-err');
+  }
+}
+
+async function detachServo(sid) {
+  const res = await fetch('/api/detach', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({sid})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    attachedMap = intKeys(data.attached||{});
+    renderServoList();
+    addLog(`→ DETACH ${sid}`, 'c-send');
+  } else {
+    addLog('✘ DETACH 失敗: '+(data.detail||''), 'c-err');
+  }
+}
+
+async function attachAll() {
+  const servos = {};
+  for (let i=0; i<MAX_SERVOS; i++) servos[i+1] = pinSettings[i];
+  const res = await fetch('/api/attach_all', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({servos})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    attachedMap = intKeys(data.attached||{});
+    renderServoList();
+    addLog('→ 全部 ATTACH', 'c-send');
+  } else addLog('✘ ATTACH_ALL 失敗', 'c-err');
+}
+
+async function detachAll() {
+  const res = await fetch('/api/detach_all', {method:'POST'});
+  const data = await res.json();
+  if (res.ok) {
+    attachedMap = {};
+    renderServoList();
+    addLog('→ 全部 DETACH', 'c-send');
+  } else addLog('✘ DETACH_ALL 失敗', 'c-err');
 }
 
 // ════════════════════════════════════════
 //  Port
 // ════════════════════════════════════════
 async function refreshPorts() {
-  const res   = await fetch('/api/ports');
-  const data  = await res.json();
-  const sel   = document.getElementById('port-select');
-  const cur   = sel.value;
-  sel.innerHTML = '<option value="">— Auto Detect —</option>';
-  (data.ports || []).forEach(p => {
-    const opt  = document.createElement('option');
-    opt.value  = p.port;
-    opt.text   = (p.likely ? '⭐ ' : '   ') + p.port + '  ' + p.desc;
+  const res  = await fetch('/api/ports');
+  const data = await res.json();
+  const sel  = document.getElementById('port-select');
+  const cur  = sel.value;
+  sel.innerHTML = '<option value="">— 自動偵測 —</option>';
+  (data.ports||[]).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.port;
+    opt.text  = (p.likely?'⭐ ':'   ')+p.port+'  '+p.desc;
     sel.appendChild(opt);
   });
   if (cur) sel.value = cur;
 }
 
 async function toggleConnect() {
-  if (connected()) {
+  if (isConn()) {
     await fetch('/api/disconnect', {method:'POST'});
-    setUIState('disconnected');
-    addLog('Disconnected', 'c-dim');
+    applyStatus({state:'disconnected'});
+    attachedMap = {}; renderServoList();
+    addLog('已中斷連線', 'c-dim');
   } else {
     const port = document.getElementById('port-select').value || undefined;
     const res  = await fetch('/api/connect', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({port: port || null})
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({port: port||null})
     });
     const data = await res.json();
-    if (res.ok) {
-      addLog(`Connected to ${data.port}`, 'c-ok');
-    } else {
-      addLog('✘ Connection failed: ' + (data.detail || ''), 'c-err');
-    }
+    if (res.ok) addLog(`已連線到 ${data.port}`, 'c-ok');
+    else addLog('✘ 連線失敗: '+(data.detail||''), 'c-err');
   }
 }
 
 // ════════════════════════════════════════
 //  Single Step
 // ════════════════════════════════════════
-function setHome(val) {
-  homeVal = val;
-  const b1  = document.getElementById('hbtn1');
-  const b0  = document.getElementById('hbtn0');
+function setHome(v) {
+  homeVal = v;
+  document.getElementById('hbtn1').className = 'hbtn'+(v===1?' active-green':'');
+  document.getElementById('hbtn0').className = 'hbtn'+(v===0?' active-amber':'');
   const desc = document.getElementById('home-desc');
-  b1.className = 'home-btn' + (val === 1 ? ' active-green' : '');
-  b0.className = 'home-btn' + (val === 0 ? ' active-amber' : '');
-  desc.style.color = val === 1 ? 'var(--green)' : 'var(--amber)';
-  desc.innerHTML   = val === 1 ? 'home=1<br>After done<br>return 0°' : 'home=0<br>Stay at<br>target angle';
+  desc.style.color = v===1 ? 'var(--green)' : 'var(--amber)';
+  desc.innerHTML   = v===1 ? 'home=1<br>執行完<br>回到 0°' : 'home=0<br>停在<br>目標角度';
   drawCanvas();
 }
 
 function getStepParams() {
   return {
-    delay_ms:    normalizeMs(parseInt(document.getElementById('s-delay').value) || 0),
-    angle:       parseInt(document.getElementById('s-angle').value) || 0,
-    speed:       parseInt(document.getElementById('s-speed').value) || 60,
-    duration_ms: normalizeMs(parseInt(document.getElementById('s-dur').value) || 0),
+    delay_ms:    parseInt(document.getElementById('s-delay').value)||0,
+    servo_id:    parseInt(document.getElementById('s-sid').value)||1,
+    angle:       parseInt(document.getElementById('s-angle').value)||0,
+    speed:       parseInt(document.getElementById('s-speed').value)||60,
+    duration_ms: parseInt(document.getElementById('s-dur').value)||0,
     home:        homeVal,
   };
 }
 
 async function sendStep() {
-  const p = getStepParams();
+  const p   = getStepParams();
+  const sid = p.servo_id;
   drawCanvas();
-  const res = await fetch('/api/command', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(p),
-  });
-  if (!res.ok) {
-    const d = await res.json();
-    addLog('✘ ' + (d.detail || 'Send failed'), 'c-err');
-  } else {
-    addLog(`→ STEP ${p.delay_ms} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home}`, 'c-send');
+  if (!attachedMap[sid]) {
+    const pin = pinSettings[sid-1];
+    if (!confirm(`Servo ${sid} 尚未 ATTACH，是否先以 D${pin} 進行 ATTACH？`)) return;
+    await attachServo(sid, sid-1);
+    await new Promise(r=>setTimeout(r,400));
   }
+  const res = await fetch('/api/command', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(p)
+  });
+  const data = await res.json();
+  if (res.ok) addLog(`→ STEP ${p.delay_ms} ${p.servo_id} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home}`, 'c-send');
+  else addLog('✘ '+(data.detail||'送出失敗'), 'c-err');
 }
 
 function previewStep() {
-  const p = getStepParams();
-  drawCanvas();
-  addLog(`Preview: LOOP 0 | BEGIN 1 | STEP ${p.delay_ms} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home} | END`, 'c-dim');
+  const p = getStepParams(); drawCanvas();
+  addLog(`預覽: BEGIN 1 | STEP ${p.delay_ms} ${p.servo_id} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home} | END`, 'c-dim');
 }
 
-function addCurrentStepToScript() {
-  const p = getStepParams();
-  addStep({...p});
-  addLog(`+ Added to script: STEP ${p.delay_ms} ${p.angle} ${p.speed} ${p.duration_ms} ${p.home}`, 'c-dim');
-}
-
-async function sendRaw(cmd) {
+async function rawCmd(cmd) {
   const res = await fetch('/api/send', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({cmd}),
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({cmd})
   });
-  if (res.ok) addLog('→ ' + cmd, 'c-send');
-  else addLog('✘ Not connected', 'c-err');
+  if (res.ok) addLog('→ '+cmd, 'c-send');
+  else addLog('✘ 未連線', 'c-err');
 }
 
 async function apiStop() {
@@ -614,241 +622,143 @@ async function apiStop() {
 //  Canvas
 // ════════════════════════════════════════
 function drawCanvas() {
-  const angle = parseInt(document.getElementById('s-angle').value) || 0;
-  const c     = document.getElementById('servo-canvas');
-  const ctx   = c.getContext('2d');
-  const cx = 50, cy = 66, r = 38;
-  ctx.clearRect(0, 0, c.width, c.height);
-
-  // Background arc
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, Math.PI, 0, false);
-  ctx.strokeStyle = '#2a2a38'; ctx.lineWidth = 2; ctx.stroke();
-
-  // home=1 dashed return path (0 -> target angle, counterclockwise)
-  if (homeVal === 1 && angle > 0) {
-    const rad = angle * Math.PI / 180;
-    ctx.beginPath();
-    // Canvas uses clockwise-positive angles, so use negative rad to draw upper half path.
-    ctx.arc(cx, cy, r - 7, 0, -rad, true);
-    ctx.strokeStyle = '#1a4a1a'; ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]); ctx.stroke(); ctx.setLineDash([]);
+  const angle = parseInt(document.getElementById('s-angle').value)||0;
+  const c = document.getElementById('servo-canvas');
+  const ctx = c.getContext('2d');
+  const cx=48, cy=60, r=36;
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,0,false);
+  ctx.strokeStyle='#2a2a38'; ctx.lineWidth=2; ctx.stroke();
+  if (homeVal===1&&angle>0) {
+    ctx.beginPath(); ctx.arc(cx,cy,r-6,Math.PI,Math.PI-angle*Math.PI/180,true);
+    ctx.strokeStyle='#1a4a1a'; ctx.lineWidth=1;
+    ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
   }
-
-  // Needle: 0->180 counterclockwise (right -> left)
-  const rad = angle * Math.PI / 180;
-  const ex  = cx + r * Math.cos(rad);
-  const ey  = cy - r * Math.sin(rad);
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
-  ctx.strokeStyle = homeVal === 1 ? '#22c55e' : '#f59e0b';
-  ctx.lineWidth = 2.5; ctx.stroke();
-
-  // Center dot
-  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-  ctx.fillStyle = '#f59e0b'; ctx.fill();
-
-  // home=1 return dot
-  if (homeVal === 1) {
-    ctx.beginPath(); ctx.arc(cx + r, cy, 3.5, 0, Math.PI * 2);
-    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5;
-    ctx.fillStyle = '#1a4a1a'; ctx.fill(); ctx.stroke();
+  const rad=Math.PI-angle*Math.PI/180;
+  const ex=cx+r*Math.cos(rad), ey=cy-r*Math.sin(rad);
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(ex,ey);
+  ctx.strokeStyle=homeVal===1?'#22c55e':'#f59e0b'; ctx.lineWidth=2.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fillStyle='#f59e0b'; ctx.fill();
+  if (homeVal===1) {
+    ctx.beginPath(); ctx.arc(cx+r,cy,3,0,Math.PI*2);
+    ctx.strokeStyle='#22c55e'; ctx.lineWidth=1.5; ctx.fillStyle='#1a4a1a'; ctx.fill(); ctx.stroke();
   }
-
-  // Angle label
-  ctx.fillStyle = '#e2e8f0'; ctx.font = '11px Consolas';
-  ctx.textAlign = 'center'; ctx.fillText(angle + '°', cx, cy + 18);
-}
-function updateCanvas() { drawCanvas(); }
-
-function syncRangeValue(inputId, valueId) {
-  const input = document.getElementById(inputId);
-  const value = document.getElementById(valueId);
-  if (input && value) value.textContent = input.value;
-}
-
-function syncStepSliderValue(el) {
-  const value = el.closest('.step-range-wrap')?.querySelector('.step-val');
-  if (value) value.textContent = el.value;
-}
-
-function normalizeMs(v) {
-  const n = isNaN(v) ? 0 : Math.max(0, Math.min(30000, v));
-  return Math.round(n / 500) * 500;
+  ctx.fillStyle='#e2e8f0'; ctx.font='11px Consolas'; ctx.textAlign='center';
+  ctx.fillText(angle+'°', cx, cy+18);
 }
 
 // ════════════════════════════════════════
 //  Script Editor
 // ════════════════════════════════════════
 function addStep(s) {
-  const row = s || {delay_ms:0, angle:90, speed:60, duration_ms:500, home:1};
+  const row = s || {delay_ms:0, servo_id:1, angle:90, speed:60, duration_ms:300, home:1};
   row._id = ++stepIdCnt;
   steps.push(row);
   renderSteps();
 }
 
-function delStep(id) {
-  steps = steps.filter(s => s._id !== id);
-  renderSteps();
-}
+function delStep(id) { steps=steps.filter(s=>s._id!==id); renderSteps(); }
 
 function renderSteps() {
   const tbody = document.getElementById('steps-tbody');
   const hint  = document.getElementById('empty-hint');
   tbody.innerHTML = '';
   hint.style.display = steps.length ? 'none' : '';
-  document.getElementById('step-count').textContent = steps.length + ' STEPS';
+  document.getElementById('step-count').textContent = steps.length+' STEPS';
 
-  steps.forEach((s, i) => {
+  steps.forEach((s,i) => {
     const tr = document.createElement('tr');
-    tr.dataset.id  = s._id;
-    tr.draggable   = false;
+    tr.dataset.id = s._id; tr.draggable = true;
     tr.innerHTML = `
-      <td class="drag-col"><span class="drag-handle" draggable="true">⠿</span></td>
-      <td><div class="step-range-wrap"><details class="pop-range"><summary class="pop-trigger"><span class="step-val">${normalizeMs(s.delay_ms)}</span></summary><div class="pop-panel"><input type="range" value="${normalizeMs(s.delay_ms)}" min="0" max="30000" step="500" oninput="updateStep(${s._id},'delay_ms',this.value); syncStepSliderValue(this)"></div></details></div></td>
-      <td><div class="step-range-wrap"><details class="pop-range"><summary class="pop-trigger"><span class="step-val">${s.angle}</span></summary><div class="pop-panel"><input type="range" value="${s.angle}" min="0" max="180" oninput="updateStep(${s._id},'angle',this.value); syncStepSliderValue(this)"></div></details></div></td>
-      <td><div class="step-range-wrap"><details class="pop-range"><summary class="pop-trigger"><span class="step-val">${s.speed}</span></summary><div class="pop-panel"><input type="range" value="${s.speed}" min="1" max="100" oninput="updateStep(${s._id},'speed',this.value); syncStepSliderValue(this)"></div></details></div></td>
-      <td><div class="step-range-wrap"><details class="pop-range"><summary class="pop-trigger"><span class="step-val">${normalizeMs(s.duration_ms)}</span></summary><div class="pop-panel"><input type="range" value="${normalizeMs(s.duration_ms)}" min="0" max="30000" step="500" oninput="updateStep(${s._id},'duration_ms',this.value); syncStepSliderValue(this)"></div></details></div></td>
-      <td><button class="home-tgl ${s.home===1?'on':''}" onclick="toggleHome(${s._id},this)">${s.home===1?'↩':'✋'}</button></td>
+      <td class="drag-col">⠿</td>
+      <td><input type="number" value="${s.delay_ms}"    min="0"   max="65535" onchange="updStep(${s._id},'delay_ms',this.value)"></td>
+      <td><input type="number" value="${s.servo_id}"   min="1"   max="6"     onchange="updStep(${s._id},'servo_id',this.value)" class="sid-col"></td>
+      <td><input type="number" value="${s.angle}"       min="0"   max="180"   onchange="updStep(${s._id},'angle',this.value)"></td>
+      <td><input type="number" value="${s.speed}"       min="1"   max="100"   onchange="updStep(${s._id},'speed',this.value)"></td>
+      <td><input type="number" value="${s.duration_ms}" min="0"   max="65535" onchange="updStep(${s._id},'duration_ms',this.value)"></td>
+      <td><select class="home-sel" onchange="updStep(${s._id},'home',this.value)">
+        <option value="1" ${s.home===1?'selected':''}>1 ↩</option>
+        <option value="0" ${s.home===0?'selected':''}>0 ✋</option>
+      </select></td>
       <td><button class="del-btn" onclick="delStep(${s._id})">✕</button></td>`;
 
-    const handle = tr.querySelector('.drag-handle');
-
-    // Drag & Drop
-    handle.addEventListener('dragstart', e => {
-      dragSrc = i; tr.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    handle.addEventListener('dragend', () => {
-      tr.classList.remove('dragging');
-      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-    });
-    tr.addEventListener('dragover', e => {
-      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-      tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-      tr.classList.add('drag-over');
-    });
-    tr.addEventListener('drop', e => {
-      e.preventDefault();
-      if (dragSrc !== null && dragSrc !== i) {
-        const moved = steps.splice(dragSrc, 1)[0];
-        steps.splice(i, 0, moved);
-        dragSrc = null;
-        renderSteps();
-      }
-    });
-
+    tr.addEventListener('dragstart', e => { dragSrc=i; tr.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    tr.addEventListener('dragend',   () => { tr.classList.remove('dragging'); tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over')); });
+    tr.addEventListener('dragover',  e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; tbody.querySelectorAll('tr').forEach(r=>r.classList.remove('drag-over')); tr.classList.add('drag-over'); });
+    tr.addEventListener('drop',      e => { e.preventDefault(); if(dragSrc!==null&&dragSrc!==i){ const m=steps.splice(dragSrc,1)[0]; steps.splice(i,0,m); dragSrc=null; renderSteps(); } });
     tbody.appendChild(tr);
   });
 }
 
-function toggleHome(id, el) {
-  const newVal = el.classList.contains('on') ? 0 : 1;
-  el.classList.toggle('on', newVal === 1);
-  el.textContent = newVal === 1 ? '↩' : '✋';
-  updateStep(id, 'home', newVal);
+function updStep(id, key, val) {
+  const s = steps.find(x=>x._id===id);
+  if (s) s[key] = ['home','servo_id'].includes(key) ? parseInt(val) : (isNaN(parseFloat(val))?0:parseInt(val));
 }
 
-function updateStep(id, key, val) {
-  const s = steps.find(x => x._id === id);
-  if (!s) return;
-  if (key === 'home') {
-    s[key] = parseInt(val);
-    return;
-  }
-  const parsed = isNaN(parseFloat(val)) ? 0 : parseInt(val);
-  s[key] = (key === 'delay_ms' || key === 'duration_ms') ? normalizeMs(parsed) : parsed;
+function loadExample() {
+  steps = [];
+  [
+    {delay_ms:1000,servo_id:1,angle:90,speed:60,duration_ms:300,home:1},
+    {delay_ms:1000,servo_id:1,angle:90,speed:60,duration_ms:300,home:1},
+    {delay_ms:1000,servo_id:1,angle:90,speed:60,duration_ms:300,home:1},
+  ].forEach(s=>{ s._id=++stepIdCnt; steps.push(s); });
+  renderSteps();
 }
 
 function exportJSON() {
-  const data = {
-    loop:  document.getElementById('loop-cb').checked,
-    steps: steps.map(({_id, ...s}) => s),
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const data = {loop: document.getElementById('loop-cb').checked,
+                steps: steps.map(({_id,...s})=>s)};
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'servo_script.json';
-  a.click();
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  a.download = 'servo_script.json'; a.click();
 }
-
-function importJSON() {
-  document.getElementById('file-input').click();
-}
-
+function importJSON() { document.getElementById('file-input').click(); }
 function handleImport(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload = ev => {
     try {
-      const data = JSON.parse(ev.target.result);
-      if (typeof data.loop === 'boolean')
-        document.getElementById('loop-cb').checked = data.loop;
-      if (Array.isArray(data.steps)) {
-        steps = data.steps.map(s => ({
-          ...s,
-          delay_ms: normalizeMs(parseInt(s.delay_ms) || 0),
-          duration_ms: normalizeMs(parseInt(s.duration_ms) || 0),
-          _id: ++stepIdCnt,
-        }));
-        renderSteps();
-      }
-    } catch { addLog('✘ Invalid JSON format', 'c-err'); }
+      const d=JSON.parse(ev.target.result);
+      if (typeof d.loop==='boolean') document.getElementById('loop-cb').checked=d.loop;
+      if (Array.isArray(d.steps)) { steps=d.steps.map(s=>({...s,_id:++stepIdCnt})); renderSteps(); }
+    } catch { addLog('✘ JSON 格式錯誤','c-err'); }
   };
-  reader.readAsText(file);
-  e.target.value = '';
+  r.readAsText(file); e.target.value='';
 }
 
 async function runScript(forceLoop) {
-  if (!steps.length) { addLog('⚠ Script is empty', 'c-err'); return; }
+  if (!steps.length) { addLog('⚠ 腳本為空','c-err'); return; }
   const loop = forceLoop || document.getElementById('loop-cb').checked;
-  document.getElementById('loop-badge').style.display = loop ? '' : 'none';
-  const body = { loop, steps: steps.map(({_id, ...s}) => s) };
-  const res  = await fetch('/api/run', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body),
-  });
+  document.getElementById('loop-badge').style.display = loop?'':'none';
+  const body = {loop, steps: steps.map(({_id,...s})=>s)};
+  const res  = await fetch('/api/run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const data = await res.json();
-  if (!res.ok) addLog('✘ ' + (data.detail || 'Run failed'), 'c-err');
-  else         addLog(`→ RUN ${steps.length} steps loop=${loop}`, 'c-send');
+  if (!res.ok) addLog('✘ '+(data.detail||'執行失敗'),'c-err');
+  else         addLog(`→ RUN ${steps.length} steps loop=${loop}`,'c-send');
 }
 
 // ════════════════════════════════════════
 //  Serial Log
 // ════════════════════════════════════════
 function addLog(text, cls='c-dim') {
-  const ts = new Date().toLocaleTimeString('en-US',{hour12:false});
-  logLines.push({ts, text, cls});
-  if (logLines.length > 500) logLines.shift();
+  const ts=new Date().toLocaleTimeString('zh-TW',{hour12:false});
+  logLines.push({ts,text,cls});
+  if (logLines.length>500) logLines.shift();
   renderLog();
 }
-
 function renderLog() {
-  const filter = document.getElementById('filter-input').value.toLowerCase();
-  const out    = document.getElementById('serial-out');
-  const lines  = filter ? logLines.filter(l => l.text.toLowerCase().includes(filter)) : logLines;
-  out.innerHTML = lines.map(l =>
-    `<div class="s-line"><span class="s-ts">${l.ts}</span><span class="${l.cls}">${escHtml(l.text)}</span></div>`
-  ).join('');
-  if (document.getElementById('auto-scroll').checked)
-    out.scrollTop = out.scrollHeight;
+  const filter=document.getElementById('filter-input').value.toLowerCase();
+  const out=document.getElementById('serial-out');
+  const lines=filter?logLines.filter(l=>l.text.toLowerCase().includes(filter)):logLines;
+  out.innerHTML=lines.map(l=>`<div class="s-line"><span class="s-ts">${l.ts}</span><span class="${l.cls}">${esc(l.text)}</span></div>`).join('');
+  if (document.getElementById('auto-scroll').checked) out.scrollTop=out.scrollHeight;
 }
-
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function manualSend() {
-  const inp = document.getElementById('manual-input');
-  const cmd = inp.value.trim(); if (!cmd) return;
-  sendRaw(cmd);
-  inp.value = '';
+  const inp=document.getElementById('manual-input');
+  const cmd=inp.value.trim(); if(!cmd) return;
+  rawCmd(cmd); inp.value='';
 }
-
-document.addEventListener('click', (e) => {
-  document.querySelectorAll('details.pop-range[open]').forEach((d) => {
-    if (!d.contains(e.target)) d.removeAttribute('open');
-  });
-});
 
 // ════════════════════════════════════════
 //  Init
@@ -856,20 +766,13 @@ document.addEventListener('click', (e) => {
 document.getElementById('btn-conn').onclick    = toggleConnect;
 document.getElementById('btn-refresh').onclick = refreshPorts;
 document.getElementById('s-angle').addEventListener('input', drawCanvas);
-syncRangeValue('s-delay', 's-delay-val');
-syncRangeValue('s-angle', 's-angle-val');
-syncRangeValue('s-speed', 's-speed-val');
-syncRangeValue('s-dur', 's-dur-val');
 
-// Initial state: all run buttons disabled
-setUIState('disconnected');
-
+applyStatus({state:'disconnected'});
 refreshPorts();
 wsConnect();
 drawCanvas();
-renderSteps();
-
-// Refresh ports every 5s
+loadExample();
+renderServoList();
 setInterval(refreshPorts, 5000);
 </script>
 </body>

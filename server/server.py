@@ -1,26 +1,25 @@
 """
 server/server.py
-FastAPI + WebSocket 伺服器
+FastAPI + WebSocket 伺服器（多 Servo 支援）
 """
 
 import asyncio
 import json
 import logging
-import threading
 from pathlib import Path
 from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from serial_manager import SerialManager
+from serial_manager import SerialManager, MAX_SERVOS
 
 logger = logging.getLogger(__name__)
 
-# index.html 路徑（打包後用 sys._MEIPASS）
+
 def _html_path() -> Path:
     import sys
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
@@ -32,11 +31,12 @@ def _html_path() -> Path:
 # ─────────────────────────────────────────
 
 class StepModel(BaseModel):
-    delay_ms:    int = Field(0,   ge=0)
-    angle:       int = Field(90,  ge=0, le=180)
-    speed:       int = Field(60,  ge=1, le=100)
+    delay_ms:    int = Field(0,  ge=0)
+    servo_id:    int = Field(1,  ge=1, le=6)
+    angle:       int = Field(90, ge=0, le=180)
+    speed:       int = Field(60, ge=1, le=100)
     duration_ms: int = Field(300, ge=0)
-    home:        int = Field(1,   ge=0, le=1)
+    home:        int = Field(1,  ge=0, le=1)
 
 class RunRequest(BaseModel):
     steps: list[StepModel] = Field(..., min_length=1, max_length=48)
@@ -52,6 +52,17 @@ class RunRequest(BaseModel):
 class ConnectRequest(BaseModel):
     port: Optional[str] = None
 
+class AttachRequest(BaseModel):
+    sid: int = Field(..., ge=1, le=6, description="Servo ID 1–6")
+    pin: int = Field(..., ge=2, le=13, description="Arduino 腳位")
+
+class AttachAllRequest(BaseModel):
+    # {sid: pin} 例如 {"1": 9, "2": 10}
+    servos: dict[str, int]
+
+class DetachRequest(BaseModel):
+    sid: int = Field(..., ge=1, le=6)
+
 
 # ─────────────────────────────────────────
 #  WebSocket 管理器
@@ -63,7 +74,7 @@ class WSManager:
         self._lock = asyncio.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
 
-    def set_loop(self, loop: asyncio.AbstractEventLoop):
+    def set_loop(self, loop):
         self._loop = loop
 
     async def connect(self, ws: WebSocket):
@@ -91,7 +102,6 @@ class WSManager:
             await self.disconnect(ws)
 
     def broadcast_sync(self, data: dict):
-        """Thread-safe broadcast from a non-async serial reader thread."""
         try:
             loop = self._loop
             if loop is not None and loop.is_running():
@@ -114,36 +124,43 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
         allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
     )
 
-    # Serial 回調 → WS 廣播
+    # ── Serial 回調 → WS 廣播 ────────────
     def on_serial_line(line: str):
         ws_mgr.broadcast_sync({"type": "serial", "line": line})
-        # 解析進度
+
         if line.startswith("OK RUNNING ") and "/" in line:
             try:
                 cur, tot = line.split()[-1].split("/")
-                # Firmware reports next step index (1-based), so convert to
-                # completed-step count for UI progress.
-                completed = max(0, int(cur) - 1)
                 ws_mgr.broadcast_sync({
                     "type": "status", "state": "running",
-                    "step": completed, "total": int(tot),
+                    "step": max(0, int(cur) - 1), "total": int(tot),
                     "port": serial_mgr.port,
                 })
             except Exception:
                 pass
         elif line == "OK DONE":
             ws_mgr.broadcast_sync({"type": "done", "state": "idle"})
-        elif line == "OK STOPPED":
+        elif line in ("OK STOPPED", "OK READY"):
             ws_mgr.broadcast_sync({"type": "status", "state": "idle",
-                                    "port": serial_mgr.port})
-        elif line == "OK READY":
-            ws_mgr.broadcast_sync({"type": "status", "state": "idle",
-                                    "port": serial_mgr.port})
+                                    "port": serial_mgr.port,
+                                    "attached": serial_mgr.attached})
+        elif line.startswith("OK ATTACH ") or line.startswith("OK DETACH "):
+            # 廣播最新 attached 狀態
+            ws_mgr.broadcast_sync({
+                "type":     "attached",
+                "attached": serial_mgr.attached,
+            })
+        elif line.startswith("OK IDLE") and "ATTACHED=" in line:
+            ws_mgr.broadcast_sync({
+                "type":     "attached",
+                "attached": serial_mgr.attached,
+            })
         elif line.startswith("ERR"):
             ws_mgr.broadcast_sync({"type": "error", "message": line})
 
     def on_disconnect():
-        ws_mgr.broadcast_sync({"type": "status", "state": "disconnected", "port": None})
+        ws_mgr.broadcast_sync({"type": "status", "state": "disconnected",
+                                "port": None, "attached": {}})
 
     serial_mgr.on_line(on_serial_line)
     serial_mgr.on_disconnect(on_disconnect)
@@ -156,7 +173,6 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
     @app.websocket("/ws")
     async def ws_endpoint(ws: WebSocket):
         await ws_mgr.connect(ws)
-        # 連線後推送當前狀態
         await ws.send_text(json.dumps(_status(serial_mgr)))
         try:
             while True:
@@ -167,7 +183,7 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
         except WebSocketDisconnect:
             await ws_mgr.disconnect(ws)
 
-    # ── GET / → index.html ────────────────
+    # ── GET / ─────────────────────────────
     @app.get("/", response_class=HTMLResponse)
     async def index():
         p = _html_path()
@@ -196,7 +212,10 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
         )
         if not ok:
             raise HTTPException(500, f"無法連線到 {port}")
-        ws_mgr.broadcast_sync({"type": "status", "state": "idle", "port": port})
+        ws_mgr.broadcast_sync({"type": "status", "state": "idle",
+                                "port": port, "attached": {}})
+        # 連線後查詢狀態，同步 ATTACH 資訊
+        serial_mgr.send("STATUS")
         return {"ok": True, "port": port}
 
     # ── POST /api/disconnect ──────────────
@@ -204,6 +223,54 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
     async def api_disconnect():
         serial_mgr.disconnect()
         return {"ok": True}
+
+    # ── POST /api/attach ──────────────────
+    @app.post("/api/attach")
+    async def api_attach(req: AttachRequest):
+        if not serial_mgr.is_connected:
+            raise HTTPException(400, "尚未連線到 Arduino")
+        ok = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: serial_mgr.attach_servo(req.sid, req.pin)
+        )
+        if not ok:
+            raise HTTPException(500, "ATTACH 失敗")
+        return {"ok": True, "sid": req.sid, "pin": req.pin,
+                "attached": serial_mgr.attached}
+
+    # ── POST /api/detach ──────────────────
+    @app.post("/api/detach")
+    async def api_detach(req: DetachRequest):
+        if not serial_mgr.is_connected:
+            raise HTTPException(400, "尚未連線到 Arduino")
+        ok = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: serial_mgr.detach_servo(req.sid)
+        )
+        if not ok:
+            raise HTTPException(500, "DETACH 失敗")
+        return {"ok": True, "sid": req.sid, "attached": serial_mgr.attached}
+
+    # ── POST /api/attach_all ──────────────
+    @app.post("/api/attach_all")
+    async def api_attach_all(req: AttachAllRequest):
+        if not serial_mgr.is_connected:
+            raise HTTPException(400, "尚未連線到 Arduino")
+        pin_map = {int(k): v for k, v in req.servos.items()}
+        ok = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: serial_mgr.attach_all(pin_map)
+        )
+        if not ok:
+            raise HTTPException(500, "ATTACH_ALL 失敗")
+        return {"ok": True, "attached": serial_mgr.attached}
+
+    # ── POST /api/detach_all ──────────────
+    @app.post("/api/detach_all")
+    async def api_detach_all():
+        if not serial_mgr.is_connected:
+            raise HTTPException(400, "尚未連線到 Arduino")
+        await asyncio.get_event_loop().run_in_executor(
+            None, serial_mgr.detach_all
+        )
+        return {"ok": True, "attached": {}}
 
     # ── POST /api/run ─────────────────────
     @app.post("/api/run")
@@ -235,9 +302,8 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
     async def api_command(req: StepModel):
         if not serial_mgr.is_connected:
             raise HTTPException(400, "尚未連線")
-        s = req.model_dump()
         ok = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: serial_mgr.send_script([s], loop=False)
+            None, lambda: serial_mgr.send_command(req.model_dump())
         )
         if not ok:
             raise HTTPException(500, "指令傳送失敗")
@@ -251,32 +317,7 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
         cmd = body.get("cmd", "").strip()
         if not cmd:
             raise HTTPException(400, "cmd 不能為空")
-
-        # Keep browser behavior aligned with serial_tester:
-        # a bare STEP command should run as a one-step script.
-        if cmd.upper().startswith("STEP "):
-            parts = cmd.split()
-            if len(parts) not in (5, 6):
-                raise HTTPException(400, "STEP 格式錯誤，應為: STEP delay angle speed duration [home]")
-            try:
-                step = {
-                    "delay_ms": int(parts[1]),
-                    "angle": int(parts[2]),
-                    "speed": int(parts[3]),
-                    "duration_ms": int(parts[4]),
-                    "home": int(parts[5]) if len(parts) == 6 else 1,
-                }
-            except ValueError:
-                raise HTTPException(400, "STEP 參數必須是數字")
-
-            ok = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: serial_mgr.send_script([step], loop=False)
-            )
-            if not ok:
-                raise HTTPException(500, "STEP 指令傳送失敗")
-        else:
-            serial_mgr.send(cmd)
+        serial_mgr.send(cmd)
         return {"ok": True}
 
     return app, serial_mgr, ws_mgr
@@ -284,15 +325,12 @@ def create_app() -> tuple[FastAPI, SerialManager, WSManager]:
 
 def _status(mgr: SerialManager) -> dict:
     return {
-        "type":  "status",
-        "state": "idle" if mgr.is_connected else "disconnected",
-        "port":  mgr.port,
+        "type":     "status",
+        "state":    "idle" if mgr.is_connected else "disconnected",
+        "port":     mgr.port,
+        "attached": mgr.attached,
     }
 
-
-# ─────────────────────────────────────────
-#  啟動入口
-# ─────────────────────────────────────────
 
 def run_server(host: str = "127.0.0.1", port: int = 7070):
     app, _, _ = create_app()

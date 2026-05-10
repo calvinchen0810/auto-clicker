@@ -1,15 +1,19 @@
 """
 server/serial_manager.py
 PySerial 通訊層 — 管理連線、收發、狀態追蹤
+支援多 Servo ATTACH / DETACH
 """
 
 import serial
 import serial.tools.list_ports
 import threading
 import logging
+import time
 from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
+
+MAX_SERVOS = 6
 
 
 class SerialManager:
@@ -25,11 +29,13 @@ class SerialManager:
         self._thread:   Optional[threading.Thread] = None
         self._running = False
 
-        # 回調
-        self._on_line:  Optional[Callable[[str], None]] = None  # 收到一行
-        self._on_disconnect: Optional[Callable[[], None]] = None  # 連線中斷
+        # 本地追蹤已 ATTACH 的 Servo {sid: pin}
+        self._attached: dict[int, int] = {}
 
-    # ── 回調設定 ──────────────────────────
+        self._on_line:       Optional[Callable[[str], None]] = None
+        self._on_disconnect: Optional[Callable[[], None]]    = None
+
+    # ── 回調 ──────────────────────────────
 
     def on_line(self, cb: Callable[[str], None]):
         self._on_line = cb
@@ -46,11 +52,7 @@ class SerialManager:
             desc   = p.description or ""
             likely = any(k in desc.upper()
                          for k in ["CH340", "CH341", "ARDUINO", "USB SERIAL"])
-            ports.append({
-                "port":   p.device,
-                "desc":   desc,
-                "likely": likely,
-            })
+            ports.append({"port": p.device, "desc": desc, "likely": likely})
         return sorted(ports, key=lambda x: (not x["likely"], x["port"]))
 
     @staticmethod
@@ -85,7 +87,8 @@ class SerialManager:
                 self._serial.close()
             except Exception:
                 pass
-        self._serial = None
+        self._serial   = None
+        self._attached = {}
         logger.info("Disconnected")
 
     @property
@@ -95,6 +98,11 @@ class SerialManager:
     @property
     def port(self) -> Optional[str]:
         return self._serial.port if self.is_connected else None
+
+    @property
+    def attached(self) -> dict[int, int]:
+        """回傳已 ATTACH 的 Servo {sid: pin}"""
+        return dict(self._attached)
 
     # ── 傳送 ──────────────────────────────
 
@@ -109,13 +117,58 @@ class SerialManager:
             logger.error(f"Send error: {e}")
             return False
 
+    # ── Servo ATTACH / DETACH ─────────────
+
+    def attach_servo(self, sid: int, pin: int) -> bool:
+        """送出 ATTACH sid pin，更新本地狀態"""
+        if not self.is_connected:
+            return False
+        if not (1 <= sid <= MAX_SERVOS):
+            return False
+        ok = self.send(f"ATTACH {sid} {pin}")
+        if ok:
+            self._attached[sid] = pin
+        return ok
+
+    def detach_servo(self, sid: int) -> bool:
+        """送出 DETACH sid，更新本地狀態"""
+        if not self.is_connected:
+            return False
+        ok = self.send(f"DETACH {sid}")
+        if ok:
+            self._attached.pop(sid, None)
+        return ok
+
+    def attach_all(self, pin_map: dict[int, int]) -> bool:
+        """批次 ATTACH，pin_map = {sid: pin}"""
+        for sid, pin in pin_map.items():
+            if not self.attach_servo(sid, pin):
+                return False
+            time.sleep(0.15)
+        return True
+
+    def detach_all(self) -> bool:
+        """批次 DETACH 所有已 ATTACH 的 Servo"""
+        for sid in list(self._attached.keys()):
+            self.detach_servo(sid)
+            time.sleep(0.1)
+        return True
+
+    # ── 腳本傳送 ──────────────────────────
+
     def send_script(self, steps: list[dict], loop: bool = False) -> bool:
         """
         傳送完整腳本給 Arduino
-        steps: [{"delay_ms":..., "angle":..., "speed":...,
-                 "duration_ms":..., "home":...}, ...]
+        steps: [{
+            "delay_ms": int,
+            "servo_id": int,   ← 新增
+            "angle": int,
+            "speed": int,
+            "duration_ms": int,
+            "home": int
+        }, ...]
         """
-        def _to_int(v, default=0):
+        def _int(v, default=0):
             try:
                 return int(v)
             except (TypeError, ValueError):
@@ -126,24 +179,24 @@ class SerialManager:
             f"BEGIN {len(steps)}",
         ]
         for s in steps:
-            # Sanitize all fields so browser-side string/float values
-            # cannot skew the STEP command sent to Arduino.
-            delay_ms = max(0, min(65535, _to_int(s.get("delay_ms", 0), 0)))
-            angle    = max(0, min(180,   _to_int(s.get("angle", 90), 90)))
-            speed    = max(1, min(100,   _to_int(s.get("speed", 60), 60)))
-            duration = max(0, min(65535, _to_int(s.get("duration_ms", 300), 300)))
-            home     = 1 if _to_int(s.get("home", 1), 1) else 0
-            cmds.append(
-                f"STEP {delay_ms} {angle} {speed} {duration} {home}"
-            )
+            delay_ms = max(0,   min(65535, _int(s.get("delay_ms",    0),    0)))
+            sid      = max(1,   min(6,     _int(s.get("servo_id",    1),    1)))
+            angle    = max(0,   min(180,   _int(s.get("angle",       90),  90)))
+            speed    = max(1,   min(100,   _int(s.get("speed",       60),  60)))
+            duration = max(0,   min(65535, _int(s.get("duration_ms", 300), 300)))
+            home     = 1 if _int(s.get("home", 1), 1) else 0
+            cmds.append(f"STEP {delay_ms} {sid} {angle} {speed} {duration} {home}")
         cmds.append("END")
 
-        import time
         for cmd in cmds:
             if not self.send(cmd):
                 return False
             time.sleep(0.06)
         return True
+
+    def send_command(self, step: dict) -> bool:
+        """送出單一步驟（包成 BEGIN 1 ... END）"""
+        return self.send_script([step], loop=False)
 
     # ── 背景讀取 ──────────────────────────
 
@@ -157,12 +210,41 @@ class SerialManager:
                     line = raw.decode("utf-8", errors="replace").strip()
                     if line:
                         logger.debug(f"<< {line}")
+                        # 同步本地 ATTACH 狀態
+                        self._sync_attach_state(line)
                         if self._on_line:
                             self._on_line(line)
             except serial.SerialException as e:
                 logger.error(f"Read error: {e}")
                 break
 
-        # 連線中斷通知
         if self._on_disconnect:
             self._on_disconnect()
+
+    def _sync_attach_state(self, line: str):
+        """解析 Arduino 回應，同步本地 ATTACH 狀態"""
+        # OK ATTACH sid pin
+        if line.startswith("OK ATTACH "):
+            parts = line.split()
+            if len(parts) >= 4:
+                try:
+                    self._attached[int(parts[2])] = int(parts[3])
+                except ValueError:
+                    pass
+        # OK DETACH sid
+        elif line.startswith("OK DETACH "):
+            parts = line.split()
+            if len(parts) >= 3:
+                try:
+                    self._attached.pop(int(parts[2]), None)
+                except ValueError:
+                    pass
+        # OK IDLE ATTACHED=1,2,3
+        elif line.startswith("OK IDLE") and "ATTACHED=" in line:
+            try:
+                part = line.split("ATTACHED=")[1].strip()
+                if part == "0":
+                    self._attached = {}
+                # 注意：只知道 sid，不知道 pin，保留已知的 pin
+            except Exception:
+                pass
