@@ -1,16 +1,16 @@
 """
 tools/serial_tester/serial_tester.py
 
-Arduino Servo Serial 測試工具（多 Servo 支援）
-- 最多 6 顆 SG90 Servo
-- 動態 ATTACH / DETACH
-- 單步測試 / 腳本測試 / Serial Monitor
+Arduino Servo Serial Tester (Multi-Servo Support)
+- Up to 6 SG90 Servos
+- Dynamic ATTACH / DETACH
+- Single Step / Script / Serial Monitor
 
-STEP 格式：delay_ms servo_id angle speed duration_ms [home]
-  home=1（預設）→ 執行完回到 0°
-  home=0        → 停在目標角度
+STEP format: delay_ms servo_id angle speed duration_ms [home]
+  home=1 (default) → return to 0° after execution
+  home=0          → stay at target angle
 
-執行方式：
+Usage:
     pip install pyserial
     python serial_tester.py
 """
@@ -122,14 +122,14 @@ class SerialTester(tk.Tk):
         tk.Label(top, text="Servo Serial Tester", bg=BG_PANEL, fg=FG, font=FONT_TITLE).pack(side="left")
         self._dot = tk.Label(top, text="●", bg=BG_PANEL, fg=RED, font=("Consolas",14))
         self._dot.pack(side="left", padx=(16,4))
-        self._lbl_state = tk.Label(top, text="未連線", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI)
+        self._lbl_state = tk.Label(top, text="Disconnected", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI)
         self._lbl_state.pack(side="left")
         tk.Label(top, text="  Port:", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI).pack(side="left")
         self._port_var = tk.StringVar()
         self._port_cb  = ttk.Combobox(top, textvariable=self._port_var, width=28, font=FONT_MONO, state="readonly")
         self._port_cb.pack(side="left", padx=4)
         tk.Button(top, text="⟳", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=6, cursor="hand2", command=self._refresh_ports).pack(side="left")
-        self._btn_conn = tk.Button(top, text="連線", bg="#166534", fg="#bbf7d0", font=FONT_UI_B, bd=0, padx=12, pady=4, cursor="hand2", command=self._toggle_connect)
+        self._btn_conn = tk.Button(top, text="Connect", bg="#166534", fg="#bbf7d0", font=FONT_UI_B, bd=0, padx=12, pady=4, cursor="hand2", command=self._toggle_connect)
         self._btn_conn.pack(side="left", padx=(8,0))
 
         body = tk.Frame(self, bg=BG)
@@ -156,12 +156,12 @@ class SerialTester(tk.Tk):
         parent.rowconfigure(1, weight=0)
         parent.columnconfigure(0, weight=1)
 
-        grp = self._group(parent, "Servo 管理（ATTACH / DETACH）")
+        grp = self._group(parent, "Servo Control (ATTACH / DETACH)")
         grp.grid(row=0, column=0, sticky="ew", pady=(0,6))
 
         hdr = tk.Frame(grp, bg=BG_PANEL)
         hdr.pack(fill="x", padx=8, pady=(6,2))
-        for text, w in [("ID",28),("腳位",52),("狀態",70),("操作",100)]:
+        for text, w in [("ID",28),("Pin",52),("Status",70),("Action",100)]:
             tk.Label(hdr, text=text, bg=BG_PANEL, fg=FG_DIM, font=("Consolas",9), width=w//8, anchor="w").pack(side="left", padx=2)
 
         self._servo_rows = []
@@ -170,10 +170,10 @@ class SerialTester(tk.Tk):
 
         bulk = tk.Frame(grp, bg=BG_PANEL)
         bulk.pack(fill="x", padx=8, pady=(4,8))
-        tk.Button(bulk, text="全部 ATTACH", bg=BG_INPUT, fg=GREEN, font=FONT_UI, bd=0, padx=8, pady=3, cursor="hand2", command=self._attach_all).pack(side="left", padx=(0,6))
-        tk.Button(bulk, text="全部 DETACH", bg=BG_INPUT, fg=RED,   font=FONT_UI, bd=0, padx=8, pady=3, cursor="hand2", command=self._detach_all).pack(side="left")
+        tk.Button(bulk, text="Attach All", bg=BG_INPUT, fg=GREEN, font=FONT_UI, bd=0, padx=8, pady=3, cursor="hand2", command=self._attach_all).pack(side="left", padx=(0,6))
+        tk.Button(bulk, text="Detach All", bg=BG_INPUT, fg=RED,   font=FONT_UI, bd=0, padx=8, pady=3, cursor="hand2", command=self._detach_all).pack(side="left")
 
-        grp2 = self._group(parent, "快速指令")
+        grp2 = self._group(parent, "Quick Commands")
         grp2.grid(row=1, column=0, sticky="ew", pady=(0,6))
         qrow = tk.Frame(grp2, bg=BG_PANEL)
         qrow.pack(fill="x", padx=8, pady=8)
@@ -206,7 +206,7 @@ class SerialTester(tk.Tk):
         parent.rowconfigure(1, weight=1)
         parent.columnconfigure(0, weight=1)
 
-        grp1 = self._group(parent, "單步測試")
+        grp1 = self._group(parent, "Single Step")
         grp1.grid(row=0, column=0, sticky="ew", pady=(0,6))
 
         fields = tk.Frame(grp1, bg=BG_PANEL)
@@ -219,11 +219,11 @@ class SerialTester(tk.Tk):
         self._home_var     = tk.IntVar(value=1)
 
         for i,(label,var,lo,hi) in enumerate([
-            ("延遲 ms",  self._delay_var,    0, 65535),
+            ("Delay ms",  self._delay_var,    0, 65535),
             ("Servo ID", self._sid_var,      1, 6),
-            ("角度 °",   self._angle_var,    0, 180),
-            ("速度",     self._speed_var,    1, 100),
-            ("停留 ms",  self._duration_var, 0, 65535),
+            ("Angle °",   self._angle_var,    0, 180),
+            ("Speed",     self._speed_var,    1, 100),
+            ("Hold ms",  self._duration_var, 0, 65535),
         ]):
             col = (i%2)*2; r = i//2
             tk.Label(fields, text=label, bg=BG_PANEL, fg=FG_DIM, font=FONT_UI).grid(row=r, column=col, sticky="w", padx=(4,2), pady=3)
@@ -233,10 +233,10 @@ class SerialTester(tk.Tk):
 
         home_row = tk.Frame(grp1, bg=BG_PANEL)
         home_row.pack(fill="x", padx=8, pady=(4,0))
-        tk.Label(home_row, text="歸位", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI).pack(side="left", padx=(4,8))
-        self._btn_home1 = tk.Button(home_row, text="1  回 0°", font=FONT_UI, bg="#14532d", fg="#bbf7d0", bd=0, padx=10, pady=3, cursor="hand2", command=lambda: self._set_home(1))
+        tk.Label(home_row, text="Home", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI).pack(side="left", padx=(4,8))
+        self._btn_home1 = tk.Button(home_row, text="1  Return 0°", font=FONT_UI, bg="#14532d", fg="#bbf7d0", bd=0, padx=10, pady=3, cursor="hand2", command=lambda: self._set_home(1))
         self._btn_home1.pack(side="left", padx=(0,4))
-        self._btn_home0 = tk.Button(home_row, text="0  停住",  font=FONT_UI, bg=BG_INPUT, fg=FG_DIM, bd=0, padx=10, pady=3, cursor="hand2", command=lambda: self._set_home(0))
+        self._btn_home0 = tk.Button(home_row, text="0  Stay",  font=FONT_UI, bg=BG_INPUT, fg=FG_DIM, bd=0, padx=10, pady=3, cursor="hand2", command=lambda: self._set_home(0))
         self._btn_home0.pack(side="left")
 
         ind = tk.Frame(grp1, bg=BG_PANEL)
@@ -244,22 +244,22 @@ class SerialTester(tk.Tk):
         self._canvas = tk.Canvas(ind, width=110, height=80, bg=BG_PANEL, highlightthickness=0)
         self._canvas.pack(side="left")
         self._draw_servo_indicator(0, home=1)
-        self._lbl_home_desc = tk.Label(ind, text="home=1\n執行完\n回到 0°", bg=BG_PANEL, fg=GREEN, font=("Consolas",9), justify="left")
+        self._lbl_home_desc = tk.Label(ind, text="home=1\nAfter done\nreturn 0°", bg=BG_PANEL, fg=GREEN, font=("Consolas",9), justify="left")
         self._lbl_home_desc.pack(side="left", padx=12)
 
         btn_row = tk.Frame(grp1, bg=BG_PANEL)
         btn_row.pack(fill="x", padx=8, pady=8)
-        tk.Button(btn_row, text="▶  送出單步", bg="#14532d", fg="#bbf7d0", font=FONT_UI_B, bd=0, padx=14, pady=5, cursor="hand2", command=self._send_step).pack(side="left")
-        tk.Button(btn_row, text="預覽指令", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=10, pady=5, cursor="hand2", command=self._preview_step).pack(side="left", padx=8)
+        tk.Button(btn_row, text="▶  Send Step", bg="#14532d", fg="#bbf7d0", font=FONT_UI_B, bd=0, padx=14, pady=5, cursor="hand2", command=self._send_step).pack(side="left")
+        tk.Button(btn_row, text="Preview", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=10, pady=5, cursor="hand2", command=self._preview_step).pack(side="left", padx=8)
 
-        grp2 = self._group(parent, "腳本測試")
+        grp2 = self._group(parent, "Script Test")
         grp2.grid(row=1, column=0, sticky="nsew")
         sb2 = tk.Frame(grp2, bg=BG_PANEL)
         sb2.pack(fill="x", padx=8, pady=6)
         self._loop_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(sb2, text="循環", variable=self._loop_var, bg=BG_PANEL, fg=FG, selectcolor=BG_INPUT, activebackground=BG_PANEL, font=FONT_UI).pack(side="left")
-        tk.Button(sb2, text="載入範例", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=10, pady=3, cursor="hand2", command=self._load_example).pack(side="left", padx=6)
-        tk.Button(sb2, text="▶ 執行腳本", bg="#14532d", fg="#bbf7d0", font=FONT_UI_B, bd=0, padx=12, pady=3, cursor="hand2", command=self._run_script).pack(side="left", padx=4)
+        tk.Checkbutton(sb2, text="Loop", variable=self._loop_var, bg=BG_PANEL, fg=FG, selectcolor=BG_INPUT, activebackground=BG_PANEL, font=FONT_UI).pack(side="left")
+        tk.Button(sb2, text="Load Example", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=10, pady=3, cursor="hand2", command=self._load_example).pack(side="left", padx=6)
+        tk.Button(sb2, text="▶ Run Script", bg="#14532d", fg="#bbf7d0", font=FONT_UI_B, bd=0, padx=12, pady=3, cursor="hand2", command=self._run_script).pack(side="left", padx=4)
         tk.Button(sb2, text="■ STOP", bg="#7f1d1d", fg="#fca5a5", font=FONT_UI_B, bd=0, padx=10, pady=3, cursor="hand2", command=lambda: self._send("STOP")).pack(side="left", padx=4)
         self._script_text = tk.Text(grp2, bg=BG_INPUT, fg=FG, font=FONT_MONO, insertbackground=FG, relief="flat", bd=0, padx=6, pady=6)
         self._script_text.pack(fill="both", expand=True, padx=8, pady=(0,8))
@@ -270,8 +270,8 @@ class SerialTester(tk.Tk):
         grp.pack(fill="both", expand=True)
         lt = tk.Frame(grp, bg=BG_PANEL)
         lt.pack(fill="x", padx=8, pady=(4,0))
-        tk.Button(lt, text="清除", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=8, pady=2, cursor="hand2", command=self._clear_log).pack(side="right")
-        self._lbl_count = tk.Label(lt, text="0 行", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI)
+        tk.Button(lt, text="Clear", bg=BG_INPUT, fg=FG_DIM, font=FONT_UI, bd=0, padx=8, pady=2, cursor="hand2", command=self._clear_log).pack(side="right")
+        self._lbl_count = tk.Label(lt, text="0 lines", bg=BG_PANEL, fg=FG_DIM, font=FONT_UI)
         self._lbl_count.pack(side="right", padx=8)
         self._log = scrolledtext.ScrolledText(grp, bg=BG, fg=GREEN, font=FONT_MONO, insertbackground=FG, relief="flat", bd=0, padx=6, pady=6, state="disabled")
         self._log.pack(fill="both", expand=True, padx=8, pady=4)
@@ -284,16 +284,16 @@ class SerialTester(tk.Tk):
         self._cmd_entry = tk.Entry(ir, textvariable=self._cmd_var, bg=BG_INPUT, fg=FG, font=FONT_MONO, insertbackground=FG, relief="flat", bd=0)
         self._cmd_entry.pack(side="left", fill="x", expand=True, padx=(4,6))
         self._cmd_entry.bind("<Return>", lambda e: self._send_manual())
-        tk.Button(ir, text="送出", bg=BG_INPUT, fg=FG, font=FONT_UI, bd=0, padx=10, pady=3, cursor="hand2", command=self._send_manual).pack(side="left")
+        tk.Button(ir, text="Send", bg=BG_INPUT, fg=FG, font=FONT_UI, bd=0, padx=10, pady=3, cursor="hand2", command=self._send_manual).pack(side="left")
 
     def _group(self, parent, title):
         return tk.LabelFrame(parent, text=f"  {title}  ", bg=BG_PANEL, fg=AMBER, font=("Consolas",9), bd=1, relief="groove", highlightbackground=BORDER)
 
-    # ── Servo 管理 ────────────────────────
+    # ── Servo Control ────────────────────────
 
     def _attach_servo(self, sid, idx):
         if not self._serial.is_connected:
-            self._log_info("⚠  未連線"); return
+            self._log_info("⚠  Not connected"); return
         pin = self._pin_vars[idx].get()
         self._send(f"ATTACH {sid} {pin}")
         self._attached[idx] = True
@@ -301,7 +301,7 @@ class SerialTester(tk.Tk):
 
     def _detach_servo(self, sid, idx):
         if not self._serial.is_connected:
-            self._log_info("⚠  未連線"); return
+            self._log_info("⚠  Not connected"); return
         self._send(f"DETACH {sid}")
         self._attached[idx] = False
         self._update_servo_row(idx)
@@ -346,11 +346,11 @@ class SerialTester(tk.Tk):
         if val == 1:
             self._btn_home1.config(bg="#14532d", fg="#bbf7d0")
             self._btn_home0.config(bg=BG_INPUT,  fg=FG_DIM)
-            self._lbl_home_desc.config(text="home=1\n執行完\n回到 0°", fg=GREEN)
+            self._lbl_home_desc.config(text="home=1\nAfter done\nreturn 0°", fg=GREEN)
         else:
             self._btn_home1.config(bg=BG_INPUT,  fg=FG_DIM)
             self._btn_home0.config(bg="#78350f",  fg="#fde68a")
-            self._lbl_home_desc.config(text="home=0\n停在\n目標角度", fg=AMBER)
+            self._lbl_home_desc.config(text="home=0\nStay at\ntarget angle", fg=AMBER)
         self._draw_servo_indicator(self._angle_var.get(), home=val)
 
     def _draw_servo_indicator(self, angle, home=None):
@@ -370,7 +370,7 @@ class SerialTester(tk.Tk):
             c.create_oval(cx+r-4,cy-4,cx+r+4,cy+4, fill="#1a4a1a", outline=GREEN, width=1)
         c.create_text(cx, cy+20, text=f"{angle}°", fill=FG, font=FONT_MONO)
 
-    # ── 連線 ──────────────────────────────
+    # ── Connection ──────────────────────────────
 
     def _refresh_ports(self):
         ports = self._serial.scan_ports()
@@ -390,31 +390,31 @@ class SerialTester(tk.Tk):
             self._set_connected(False)
             for i in range(MAX_SERVOS):
                 self._attached[i] = False; self._update_servo_row(i)
-            self._log_info("已中斷連線")
+            self._log_info("Disconnected")
         else:
             port = self._get_selected_port()
-            if not port: messagebox.showerror("錯誤","請先選擇 COM port"); return
+            if not port: messagebox.showerror("Error","Please select a COM port"); return
             if self._serial.connect(port):
                 self._set_connected(True)
-                self._log_info(f"已連線到 {port}（鮑率 115200）")
+                self._log_info(f"Connected to {port} (115200 baud)")
                 time.sleep(0.2); self._send("STATUS")
             else:
-                messagebox.showerror("連線失敗", f"無法開啟 {port}\n請確認 Arduino 已插入且驅動已安裝")
+                messagebox.showerror("Connection Failed", f"Cannot open {port}\nPlease check Arduino is plugged and driver installed")
 
     def _set_connected(self, connected):
         if connected:
             self._dot.config(fg=GREEN)
-            self._lbl_state.config(text=f"已連線  {self._get_selected_port()}", fg=GREEN)
-            self._btn_conn.config(text="斷線", bg="#7f1d1d", fg="#fca5a5")
+            self._lbl_state.config(text=f"Connected  {self._get_selected_port()}", fg=GREEN)
+            self._btn_conn.config(text="Disconnect", bg="#7f1d1d", fg="#fca5a5")
         else:
             self._dot.config(fg=RED)
-            self._lbl_state.config(text="未連線", fg=FG_DIM)
-            self._btn_conn.config(text="連線", bg="#166534", fg="#bbf7d0")
+            self._lbl_state.config(text="Disconnected", fg=FG_DIM)
+            self._btn_conn.config(text="Connect", bg="#166534", fg="#bbf7d0")
 
-    # ── 指令 ──────────────────────────────
+    # ── Commands ──────────────────────────────
 
     def _send(self, cmd):
-        if not self._serial.is_connected: self._log_info("⚠  未連線"); return False
+        if not self._serial.is_connected: self._log_info("⚠  Not connected"); return False
         self._log_send(cmd); return self._serial.send(cmd)
 
     def _send_manual(self):
@@ -430,8 +430,8 @@ class SerialTester(tk.Tk):
         sid = self._sid_var.get(); idx = sid - 1
         a = self._angle_var.get(); h = self._home_var.get()
         if not self._attached[idx]:
-            if not messagebox.askyesno("Servo 未 ATTACH",
-                    f"Servo {sid} 尚未 ATTACH，是否先以 D{self._pin_vars[idx].get()} 進行 ATTACH？"):
+            if not messagebox.askyesno("Servo not ATTACHED",
+                    f"Servo {sid} not ATTACHED, attach to D{self._pin_vars[idx].get()} first?"):
                 return
             self._attach_servo(sid, idx); time.sleep(0.4)
         self._draw_servo_indicator(a, home=h)
@@ -444,16 +444,16 @@ class SerialTester(tk.Tk):
 
     def _preview_step(self):
         self._draw_servo_indicator(self._angle_var.get(), home=self._home_var.get())
-        self._log_info(f"預覽: LOOP 0 | BEGIN 1 | {self._build_step_cmd()} | END")
+        self._log_info(f"Preview: LOOP 0 | BEGIN 1 | {self._build_step_cmd()} | END")
 
     def _load_example(self):
         self._script_text.delete("1.0","end")
         self._script_text.insert("1.0",
-            "# STEP 格式：delay_ms servo_id angle speed duration_ms [home]\n"
-            "# home=1（預設）→ 執行完回到 0°\n"
-            "# home=0        → 停在目標角度\n"
+            "# STEP format: delay_ms servo_id angle speed duration_ms [home]\n"
+            "# home=1 (default) → return to 0° after execution\n"
+            "# home=0          → stay at target angle\n"
             "#\n"
-            "# 範例 A：單顆 Servo 按 3 次（Servo 1 接 D9）\n"
+            "# Example A: Single Servo press 3 times (Servo 1 on D9)\n"
             "ATTACH 1 9\n"
             "LOOP 0\n"
             "BEGIN 3\n"
@@ -462,7 +462,7 @@ class SerialTester(tk.Tk):
             "STEP 1000 1 90 60 300 1\n"
             "END\n"
             "#\n"
-            "# 範例 B：Ctrl+Alt+Del（3 顆依序按住）\n"
+            "# Example B: Ctrl+Alt+Del (3 servos press in sequence)\n"
             "# ATTACH 1 9\n"
             "# ATTACH 2 10\n"
             "# ATTACH 3 11\n"
@@ -477,10 +477,10 @@ class SerialTester(tk.Tk):
         )
 
     def _run_script(self):
-        if not self._serial.is_connected: self._log_info("⚠  未連線"); return
+        if not self._serial.is_connected: self._log_info("⚠  Not connected"); return
         raw   = self._script_text.get("1.0","end").splitlines()
         lines = [l.strip() for l in raw if l.strip() and not l.strip().startswith("#")]
-        if not lines: messagebox.showwarning("腳本為空","請輸入腳本內容"); return
+        if not lines: messagebox.showwarning("Script Empty","Please enter script"); return
         if self._loop_var.get():
             lines = [l for l in lines if not l.startswith("LOOP")]
             lines.insert(0,"LOOP 1")
@@ -534,11 +534,11 @@ class SerialTester(tk.Tk):
         self._log.insert("end", text + "\n", tag)
         self._log.see("end"); self._log.config(state="disabled")
         lines = int(self._log.index("end-1c").split(".")[0])
-        self._lbl_count.config(text=f"{lines} 行")
+        self._lbl_count.config(text=f"{lines} lines")
 
     def _clear_log(self):
         self._log.config(state="normal"); self._log.delete("1.0","end"); self._log.config(state="disabled")
-        self._lbl_count.config(text="0 行")
+        self._lbl_count.config(text="0 lines")
 
     def on_close(self):
         self._serial.disconnect(); self.destroy()
