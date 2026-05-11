@@ -98,6 +98,7 @@ input[type=checkbox]{width:13px;height:13px;accent-color:var(--amber);cursor:poi
 .step-mini-table th{background:var(--card);color:var(--fg2);font-size:9px;letter-spacing:1px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--brite);font-weight:normal}
 .step-mini-table td{padding:3px 6px;border-bottom:1px solid var(--border)}
 .step-mini-table td input[type=number]{width:62px;padding:2px 4px}
+.step-mini-table input[type=number]{text-align:center}
 .sid-input{color:var(--amber) !important;font-weight:bold}
 #canvas-area{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 10px 4px}
 #home-desc{font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--green)}
@@ -121,6 +122,7 @@ tbody tr.dragging{opacity:.3}
 td{padding:2px 3px;vertical-align:middle}
 .drag-col{color:var(--fg3);text-align:center;width:18px;font-size:13px;cursor:grab}
 td input[type=number]{width:62px;padding:2px 4px}
+tbody td input[type=number]{text-align:center}
 td input.sid-col{color:var(--amber)}
 .home-sel{width:44px;font-size:11px;padding:2px 3px;text-align:center}
 .del-btn{background:none;border:none;color:var(--fg3);padding:2px 5px;font-size:12px;cursor:pointer}
@@ -144,7 +146,7 @@ td input.sid-col{color:var(--amber)}
 .popover-input input[type=range]{flex:1;height:6px;background:var(--border);border:none;border-radius:3px;outline:none;-webkit-appearance:none;appearance:none}
 .popover-input input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--green);cursor:pointer}
 .popover-input input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--green);border:none;cursor:pointer}
-.popover-input input[type=number]{width:60px;text-align:center;padding:4px 6px;font-size:12px}
+.popover-input input[type=number]{width:88px;min-width:88px;text-align:center;padding:4px 6px;font-size:12px}
 
 #empty-hint{padding:20px;text-align:center;color:var(--fg3);font-family:var(--mono);font-size:11px}
 
@@ -254,9 +256,9 @@ td input.sid-col{color:var(--amber)}
           <tbody><tr>
             <td><input type="number" id="s-delay" value="1000" min="0" max="30000" step="500"></td>
             <td><input type="number" id="s-sid" value="1" min="1" max="6" class="sid-input"></td>
-            <td><input type="number" id="s-angle" value="90" min="0" max="180" oninput="drawCanvas()"></td>
-            <td><input type="number" id="s-speed" value="60" min="1" max="100"></td>
-            <td><input type="number" id="s-dur" value="1000" min="0" max="30000" step="500"></td>
+            <td><input type="number" id="s-angle" value="15" min="0" max="180" oninput="drawCanvas()"></td>
+            <td><input type="number" id="s-speed" value="50" min="1" max="100"></td>
+            <td><input type="number" id="s-dur" value="100" min="0" max="10000" step="100"></td>
             <td class="step-home-cell">
               <label class="home-switch" onclick="event.stopPropagation()">
                 <input type="checkbox" id="s-home" checked onchange="setHome(this.checked?1:0)" onclick="event.stopPropagation()">
@@ -270,7 +272,7 @@ td input.sid-col{color:var(--amber)}
       <div id="step-btns">
         <button class="btn-green" onclick="sendStep()">▶ Send Step</button>
         <button onclick="previewStep()">Preview Command</button>
-        <button onclick="addStepFromUI()">＋ Add to Script</button>
+        <button class="btn-blue" onclick="addStepFromUI()">＋ Add to Script</button>
       </div>
     </div>
 
@@ -289,7 +291,6 @@ td input.sid-col{color:var(--amber)}
         <label><input type="checkbox" id="loop-cb"> Loop</label>
         <div class="spacer"></div>
         <button class="btn-green btn-sm" id="btn-run-script" onclick="runScript(false)">▶ Run</button>
-        <button class="btn-amber btn-sm" id="btn-loop-script" onclick="runScript(true)">↺ Loop Run</button>
         <button class="btn-red   btn-sm" id="btn-stop" onclick="apiStop()">■ STOP</button>
       </div>
       <div id="table-wrap">
@@ -433,10 +434,11 @@ function applyStatus(msg) {
   document.getElementById('btn-conn').className        = conn ? 'btn-red':'btn-green';
   const btnRun = document.getElementById('btn-run');
   const btnLoop = document.getElementById('btn-loop');
+  const btnLoopScript = document.getElementById('btn-loop-script');
   if (btnRun) btnRun.disabled = !conn||run;
   if (btnLoop) btnLoop.disabled = !conn||run;
   document.getElementById('btn-run-script').disabled   = !conn||run;
-  document.getElementById('btn-loop-script').disabled  = !conn||run;
+  if (btnLoopScript) btnLoopScript.disabled = !conn||run;
   document.getElementById('btn-stop').disabled         = !conn||!run;
   renderServoList();
 }
@@ -590,14 +592,19 @@ function setHome(v) {
   drawCanvas();
 }
 
-function normalizeMs(v) {
+function normalizeDelayMs(v) {
   const n = isNaN(parseInt(v)) ? 0 : parseInt(v);
   return Math.max(0, Math.min(30000, Math.round(n / 500) * 500));
 }
 
+function normalizeHoldMs(v) {
+  const n = isNaN(parseInt(v)) ? 0 : parseInt(v);
+  return Math.max(0, Math.min(10000, Math.round(n / 100) * 100));
+}
+
 function getStepParams() {
-  const delay = normalizeMs(document.getElementById('s-delay').value);
-  const hold  = normalizeMs(document.getElementById('s-dur').value);
+  const delay = normalizeDelayMs(document.getElementById('s-delay').value);
+  const hold  = normalizeHoldMs(document.getElementById('s-dur').value);
   document.getElementById('s-delay').value = delay;
   document.getElementById('s-dur').value = hold;
   return {
@@ -683,7 +690,9 @@ function drawCanvas() {
 //  Script Editor
 // ════════════════════════════════════════
 function addStep(s) {
-  const row = s || {delay_ms:1000, servo_id:1, angle:90, speed:60, duration_ms:1000, home:1};
+  const row = s || {delay_ms:1000, servo_id:1, angle:15, speed:50, duration_ms:100, home:1};
+  row.delay_ms = normalizeDelayMs(row.delay_ms);
+  row.duration_ms = normalizeHoldMs(row.duration_ms);
   row._id = ++stepIdCnt;
   steps.push(row);
   renderSteps();
@@ -713,7 +722,7 @@ function renderSteps() {
       <td><input type="number" class="pop-input" data-id="${s._id}" data-key="servo_id" data-min="1" data-max="6" value="${s.servo_id}"   min="1"   max="6"     onchange="updStep(${s._id},'servo_id',this.value)" class="sid-col"></td>
       <td><input type="number" class="pop-input" data-id="${s._id}" data-key="angle" data-min="0" data-max="180" value="${s.angle}"       min="0"   max="180"   onchange="updStep(${s._id},'angle',this.value)"></td>
       <td><input type="number" class="pop-input" data-id="${s._id}" data-key="speed" data-min="1" data-max="100" value="${s.speed}"       min="1"   max="100"   onchange="updStep(${s._id},'speed',this.value)"></td>
-      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="duration_ms" data-min="0" data-max="30000" data-step="500" value="${s.duration_ms}" min="0"   max="30000" step="500" onchange="updStep(${s._id},'duration_ms',this.value)"></td>
+      <td><input type="number" class="pop-input" data-id="${s._id}" data-key="duration_ms" data-min="0" data-max="10000" data-step="100" value="${s.duration_ms}" min="0"   max="10000" step="100" onchange="updStep(${s._id},'duration_ms',this.value)"></td>
       <td class="home-col">
         <label class="home-switch" onclick="event.stopPropagation()">
           <input type="checkbox" ${s.home===1?'checked':''} onchange="setStepHome(${s._id}, this.checked)" onclick="event.stopPropagation()">
@@ -888,7 +897,7 @@ function bindSingleStepPopovers() {
     { id:'s-sid',   title:'SERVO_ID', min:1, max:6,     step:1   },
     { id:'s-angle', title:'ANGLE',    min:0, max:180,   step:1, reverse:true },
     { id:'s-speed', title:'SPEED',    min:1, max:100,   step:1   },
-    { id:'s-dur',   title:'HOLD_MS',  min:0, max:30000, step:500 },
+    { id:'s-dur',   title:'HOLD_MS',  min:0, max:10000, step:100 },
   ];
 
   bindings.forEach(cfg => {
@@ -909,8 +918,10 @@ function updStep(id, key, val) {
   const s = steps.find(x=>x._id===id);
   if (s) {
     const parsed = isNaN(parseFloat(val)) ? 0 : parseInt(val);
-    if (key === 'delay_ms' || key === 'duration_ms') {
-      s[key] = normalizeMs(parsed);
+    if (key === 'delay_ms') {
+      s[key] = normalizeDelayMs(parsed);
+    } else if (key === 'duration_ms') {
+      s[key] = normalizeHoldMs(parsed);
     } else {
       s[key] = ['home','servo_id'].includes(key) ? parseInt(val) : parsed;
     }
@@ -964,7 +975,15 @@ function handleImport(e) {
       if (typeof d.loop==='boolean') document.getElementById('loop-cb').checked=d.loop;
       importedServos = (d.servos && typeof d.servos === 'object') ? d.servos : {};
       importedAttachCmds = Array.isArray(d.attach_cmds) ? d.attach_cmds.filter(x=>typeof x==='string') : [];
-      if (Array.isArray(d.steps)) { steps=d.steps.map(s=>({...s,_id:++stepIdCnt})); renderSteps(); }
+      if (Array.isArray(d.steps)) {
+        steps = d.steps.map(s => ({
+          ...s,
+          delay_ms: normalizeDelayMs(s.delay_ms),
+          duration_ms: normalizeHoldMs(s.duration_ms),
+          _id: ++stepIdCnt,
+        }));
+        renderSteps();
+      }
     } catch { addLog('✘ Invalid JSON format','c-err'); }
   };
   r.readAsText(file); e.target.value='';
@@ -979,7 +998,13 @@ async function runScript(forceLoop) {
     loop,
     servos: servosToSend,
     attach_cmds: importedAttachCmds,
-    steps: steps.map(({_id,...s})=>s),
+    steps: steps.map(({_id,...s})=>(
+      {
+        ...s,
+        delay_ms: normalizeDelayMs(s.delay_ms),
+        duration_ms: normalizeHoldMs(s.duration_ms),
+      }
+    )),
   };
   const res  = await fetch('/api/run', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   const data = await res.json();

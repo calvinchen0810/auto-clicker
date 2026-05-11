@@ -44,7 +44,7 @@ def print_banner(arduino_port: str = None):
 ║  Web UI : http://{HOST}:{PORT}      ║
 ║  API    : http://{HOST}:{PORT}/docs ║
 ╠══════════════════════════════════════╣
-║  Arduino: {port_str:<28}  ║
+║  Arduino: {port_str:<28}║
 ╚══════════════════════════════════════╝
   Press Ctrl+C to stop
 """)
